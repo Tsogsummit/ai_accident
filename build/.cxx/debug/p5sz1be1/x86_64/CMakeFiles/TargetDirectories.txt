@@ -1,0 +1,2 @@
+/Users/tsogboldbaatar/Desktop/diploma/ai_accident/build/.cxx/debug/p5sz1be1/x86_64/CMakeFiles/edit_cache.dir
+/Users/tsogboldbaatar/Desktop/diploma/ai_accident/build/.cxx/debug/p5sz1be1/x86_64/CMakeFiles/rebuild_cache.dir
