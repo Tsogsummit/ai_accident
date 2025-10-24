@@ -1,8 +1,11 @@
+// lib/screens/home_screen.dart - FIXED VERSION
+// 🇲🇳 ҮНД ХУУДАС - Монгол навигаци
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';
 import 'map_screen.dart';
-import 'reports_screen.dart';
+import 'history_screen.dart'; // Renamed from reports_screen
 import 'camera_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
@@ -14,10 +17,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  
+
   final List<Widget> _screens = [
     MapScreen(),
-    ReportsScreen(),
+    HistoryScreen(), // "Түүх" instead of "Тайлан"
     CameraScreen(),
     NotificationsScreen(),
     ProfileScreen(),
@@ -35,28 +38,38 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         selectedItemColor: Theme.of(context).primaryColor,
         unselectedItemColor: Colors.grey[600],
+        selectedFontSize: 12,
+        unselectedFontSize: 11,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
         items: [
+          // 🗺️ Map
           BottomNavigationBarItem(
             icon: Icon(Icons.map_outlined),
             activeIcon: Icon(Icons.map),
             label: 'Газрын зураг',
           ),
+
+          // 📜 History (renamed from Reports)
           BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined),
-            activeIcon: Icon(Icons.assignment),
-            label: 'Тайлан',
+            icon: Icon(Icons.history_outlined),
+            activeIcon: Icon(Icons.history),
+            label: 'Түүх',
           ),
+
+          // 📷 Camera
           BottomNavigationBarItem(
             icon: Container(
               padding: EdgeInsets.all(8),
@@ -68,11 +81,15 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             label: 'Камер',
           ),
+
+          // 🔔 Notifications
           BottomNavigationBarItem(
             icon: Icon(Icons.notifications_outlined),
             activeIcon: Icon(Icons.notifications),
             label: 'Мэдэгдэл',
           ),
+
+          // 👤 Profile
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outlined),
             activeIcon: Icon(Icons.person),

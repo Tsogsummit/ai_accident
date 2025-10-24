@@ -8,6 +8,7 @@ import 'services/location_service.dart';
 import 'services/camera_service.dart';
 import 'providers/accident_provider.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // await Firebase.initializeApp();

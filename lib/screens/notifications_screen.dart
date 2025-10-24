@@ -1,3 +1,6 @@
+// lib/screens/notifications_screen.dart - FIXED VERSION
+// 🇲🇳 МЭДЭГДЭЛ ХУУДАС
+
 import 'package:flutter/material.dart';
 
 class NotificationsScreen extends StatelessWidget {
@@ -7,57 +10,64 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: const Text('Мэдэгдэл'),
         backgroundColor: Colors.blue,
         actions: [
           IconButton(
             icon: const Icon(Icons.mark_email_read),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('All notifications marked as read')),
+                const SnackBar(content: Text('Бүх мэдэгдлийг уншсан гэж тэмдэглэлээ')),
               );
             },
+            tooltip: 'Бүгдийг уншсан',
           ),
         ],
       ),
       body: ListView.builder(
+        padding: EdgeInsets.all(8),
         itemCount: 8,
         itemBuilder: (context, index) {
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: index < 3 ? Colors.red : Colors.grey[300],
-              child: Icon(
-                Icons.warning,
-                color: index < 3 ? Colors.white : Colors.grey[600],
+          final bool isNew = index < 3;
+          return Card(
+            margin: EdgeInsets.symmetric(vertical: 4),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: isNew ? Colors.red : Colors.grey[300],
+                child: Icon(
+                  Icons.warning,
+                  color: isNew ? Colors.white : Colors.grey[600],
+                ),
               ),
-            ),
-            title: Text(
-              index < 3 ? 'New Accident Detected!' : 'Accident Report Update',
-              style: TextStyle(
-                fontWeight: index < 3 ? FontWeight.bold : FontWeight.normal,
+              title: Text(
+                isNew ? 'Шинэ осол илэрлээ!' : 'Ослын мэдээ шинэчлэгдлээ',
+                style: TextStyle(
+                  fontWeight: isNew ? FontWeight.bold : FontWeight.normal,
+                ),
               ),
+              subtitle: Text(
+                '${index + 1} минутын өмнө',
+              ),
+              trailing: isNew
+                  ? Container(
+                width: 12,
+                height: 12,
+                decoration: const BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                ),
+              )
+                  : null,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Мэдэгдэл ${index + 1} дарагдлаа')),
+                );
+              },
             ),
-            subtitle: Text(
-              '${index + 1} ${index == 0 ? 'minute' : 'minutes'} ago',
-            ),
-            trailing: index < 3 
-                ? Container(
-                    width: 12,
-                    height: 12,
-                    decoration: const BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                    ),
-                  )
-                : null,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Notification ${index + 1} tapped')),
-              );
-            },
           );
         },
       ),
     );
   }
 }
+
