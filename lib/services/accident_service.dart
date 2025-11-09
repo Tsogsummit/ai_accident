@@ -1,55 +1,121 @@
-// lib/services/accident_service.dart - FIXED VERSION
+// lib/services/accident_service.dart - IMPROVED VERSION
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio_smart_retry/dio_smart_retry.dart';
 import '../models/accident.dart';
+import '../config/api_config.dart';
 
 class AccidentService {
-  // ⚠️ ЧУХАЛ: Энэ URL-ийг өөрийн backend URL-ээр солино уу
-  static const String baseUrl = 'http://localhost:3000/api';
-  // Production дээр:
-  // static const String baseUrl = 'https://your-domain.com/api';
-
   late final Dio _dio;
+  String? _authToken;
+
+  // Cache for accidents
+  List<Accident>? _cachedAccidents;
+  DateTime? _cacheTimestamp;
 
   AccidentService() {
     _dio = Dio(BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: Duration(seconds: 15),
-      receiveTimeout: Duration(seconds: 15),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      baseUrl: ApiConfig.baseUrl,
+      connectTimeout: ApiConfig.connectTimeout,
+      receiveTimeout: ApiConfig.receiveTimeout,
+      sendTimeout: ApiConfig.sendTimeout,
+      headers: ApiConfig.defaultHeaders,
     ));
 
-    // Add interceptor for logging (development only)
+    // ✅ Add retry interceptor
     _dio.interceptors.add(
-      LogInterceptor(
-        request: true,
-        requestBody: true,
-        responseBody: true,
-        error: true,
+      RetryInterceptor(
+        dio: _dio,
+        retries: ApiConfig.maxRetryAttempts,
+        retryDelays: [
+          ApiConfig.retryDelay,
+          ApiConfig.retryDelay * 2,
+          ApiConfig.retryDelay * 3,
+        ],
+        retryableExtraStatuses: {408, 429, 500, 502, 503, 504},
+      ),
+    );
+
+    // ✅ Add logging interceptor (development only)
+    if (ApiConfig.enableLogging && ApiConfig.isDevelopment) {
+      _dio.interceptors.add(
+        LogInterceptor(
+          request: true,
+          requestBody: true,
+          responseBody: true,
+          error: true,
+          requestHeader: false,
+          responseHeader: false,
+        ),
+      );
+    }
+
+    // ✅ Add auth token interceptor
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          if (_authToken != null) {
+            options.headers['Authorization'] = 'Bearer $_authToken';
+          }
+          return handler.next(options);
+        },
+        onError: (error, handler) async {
+          // Handle 401 errors (unauthorized)
+          if (error.response?.statusCode == 401) {
+            // Token expired or invalid - clear it
+            _authToken = null;
+            // You can add auto-refresh logic here
+          }
+          return handler.next(error);
+        },
       ),
     );
   }
 
   // Set JWT token for authentication
   void setAuthToken(String token) {
-    _dio.options.headers['Authorization'] = 'Bearer $token';
+    _authToken = token;
   }
 
-  // Get all accidents with optional filters
+  // Clear auth token
+  void clearAuthToken() {
+    _authToken = null;
+  }
+
+  // Check if cache is valid
+  bool _isCacheValid() {
+    if (!ApiConfig.enableCaching) return false;
+    if (_cachedAccidents == null || _cacheTimestamp == null) return false;
+
+    final now = DateTime.now();
+    final cacheAge = now.difference(_cacheTimestamp!);
+    return cacheAge < ApiConfig.cacheValidDuration;
+  }
+
+  // Clear cache
+  void clearCache() {
+    _cachedAccidents = null;
+    _cacheTimestamp = null;
+  }
+
+  // ✅ Get all accidents with caching
   Future<List<Accident>> getAllAccidents({
     AccidentSource? source,
     AccidentSeverity? severity,
     AccidentStatus? status,
     double? latitude,
     double? longitude,
-    double? radius, // in meters
+    double? radius,
     int? limit,
     int? offset,
+    bool forceRefresh = false,
   }) async {
+    // Return cached data if valid
+    if (!forceRefresh && _isCacheValid()) {
+      return _cachedAccidents!;
+    }
+
     try {
       Map<String, dynamic> queryParams = {};
 
@@ -69,24 +135,39 @@ class AccidentService {
       if (offset != null) queryParams['offset'] = offset;
 
       final response = await _dio.get(
-        '/accidents',
+        ApiConfig.accidentsEndpoint,
         queryParameters: queryParams,
       );
 
+      List<Accident> accidents = [];
+
       if (response.data is Map && response.data['success'] == true) {
         final List<dynamic> data = response.data['data'] ?? [];
-        return data.map((json) => Accident.fromJson(json)).toList();
+        accidents = data.map((json) => Accident.fromJson(json)).toList();
       } else if (response.data is List) {
-        return (response.data as List).map((json) => Accident.fromJson(json)).toList();
+        accidents = (response.data as List)
+            .map((json) => Accident.fromJson(json))
+            .toList();
       }
 
-      return [];
+      // Update cache
+      _cachedAccidents = accidents;
+      _cacheTimestamp = DateTime.now();
+
+      return accidents;
     } on DioException catch (e) {
+      // If there's cached data and network error, return cached data
+      if (_cachedAccidents != null && _isNetworkError(e)) {
+        print('⚠️ Сүлжээний алдаа - кэш өгөгдөл ашиглаж байна');
+        return _cachedAccidents!;
+      }
       throw _handleError(e);
+    } catch (e) {
+      throw 'Тодорхойгүй алдаа гарлаа: $e';
     }
   }
 
-  // Get nearby accidents
+  // ✅ Get nearby accidents
   Future<List<Accident>> getNearbyAccidents(
       double latitude,
       double longitude, {
@@ -94,7 +175,7 @@ class AccidentService {
       }) async {
     try {
       final response = await _dio.get(
-        '/accidents/nearby',
+        ApiConfig.nearbyAccidentsEndpoint,
         queryParameters: {
           'latitude': latitude,
           'longitude': longitude,
@@ -113,10 +194,10 @@ class AccidentService {
     }
   }
 
-  // Get accident by ID
+  // ✅ Get accident by ID
   Future<Accident?> getAccidentById(String accidentId) async {
     try {
-      final response = await _dio.get('/accidents/$accidentId');
+      final response = await _dio.get('${ApiConfig.accidentsEndpoint}/$accidentId');
 
       if (response.data is Map && response.data['success'] == true) {
         return Accident.fromJson(response.data['data']);
@@ -130,7 +211,7 @@ class AccidentService {
     }
   }
 
-  // Report new accident
+  // ✅ Report new accident with progress callback
   Future<Accident> reportAccident({
     required double latitude,
     required double longitude,
@@ -138,6 +219,7 @@ class AccidentService {
     AccidentSeverity? severity,
     File? imageFile,
     File? videoFile,
+    Function(int sent, int total)? onProgress,
   }) async {
     try {
       FormData formData = FormData.fromMap({
@@ -173,7 +255,14 @@ class AccidentService {
         );
       }
 
-      final response = await _dio.post('/accidents', data: formData);
+      final response = await _dio.post(
+        ApiConfig.accidentsEndpoint,
+        data: formData,
+        onSendProgress: onProgress,
+      );
+
+      // Clear cache after successful report
+      clearCache();
 
       if (response.data is Map && response.data['success'] == true) {
         return Accident.fromJson(response.data['data']);
@@ -187,7 +276,7 @@ class AccidentService {
     }
   }
 
-  // Update accident
+  // ✅ Update accident
   Future<Accident> updateAccident(
       String accidentId, {
         String? description,
@@ -201,7 +290,13 @@ class AccidentService {
       if (severity != null) data['severity'] = _severityToString(severity);
       if (status != null) data['status'] = _statusToString(status);
 
-      final response = await _dio.put('/accidents/$accidentId', data: data);
+      final response = await _dio.put(
+        '${ApiConfig.accidentsEndpoint}/$accidentId',
+        data: data,
+      );
+
+      // Clear cache after update
+      clearCache();
 
       if (response.data is Map && response.data['success'] == true) {
         return Accident.fromJson(response.data['data']);
@@ -215,27 +310,35 @@ class AccidentService {
     }
   }
 
-  // Delete accident
+  // ✅ Delete accident
   Future<bool> deleteAccident(String accidentId) async {
     try {
-      final response = await _dio.delete('/accidents/$accidentId');
+      final response = await _dio.delete('${ApiConfig.accidentsEndpoint}/$accidentId');
+
+      // Clear cache after delete
+      clearCache();
+
       return response.data?['success'] == true;
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  // Verify accident (increase verification count)
+  // ✅ Verify accident
   Future<bool> verifyAccident(String accidentId) async {
     try {
-      final response = await _dio.post('/accidents/$accidentId/verify');
+      final response = await _dio.post('${ApiConfig.accidentsEndpoint}/$accidentId/verify');
+
+      // Clear cache after verification
+      clearCache();
+
       return response.data?['success'] == true;
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  // Report false accident
+  // ✅ Report false accident
   Future<bool> reportFalseAccident(
       String accidentId, {
         required String reason,
@@ -243,22 +346,26 @@ class AccidentService {
       }) async {
     try {
       final response = await _dio.post(
-        '/accidents/$accidentId/false-report',
+        '${ApiConfig.accidentsEndpoint}/$accidentId/false-report',
         data: {
           'reason': reason,
           'comment': comment,
         },
       );
+
+      // Clear cache after reporting false
+      clearCache();
+
       return response.data?['success'] == true;
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  // Get accident statistics
+  // ✅ Get accident statistics
   Future<Map<String, dynamic>> getStatistics() async {
     try {
-      final response = await _dio.get('/accidents/statistics');
+      final response = await _dio.get('${ApiConfig.accidentsEndpoint}/statistics');
 
       if (response.data is Map && response.data['success'] == true) {
         return response.data['data'] as Map<String, dynamic>;
@@ -270,14 +377,21 @@ class AccidentService {
     }
   }
 
-  // AI Image Analysis
-  Future<Map<String, dynamic>> analyzeImage(File imageFile) async {
+  // ✅ AI Image Analysis
+  Future<Map<String, dynamic>> analyzeImage(
+      File imageFile, {
+        Function(int sent, int total)? onProgress,
+      }) async {
     try {
       FormData formData = FormData.fromMap({
         'image': await MultipartFile.fromFile(imageFile.path),
       });
 
-      final response = await _dio.post('/ai/analyze', data: formData);
+      final response = await _dio.post(
+        '${ApiConfig.aiEndpoint}/analyze',
+        data: formData,
+        onSendProgress: onProgress,
+      );
 
       if (response.data is Map && response.data['success'] == true) {
         return response.data['data'] as Map<String, dynamic>;
@@ -289,7 +403,15 @@ class AccidentService {
     }
   }
 
-  // Helper methods
+  // Helper: Check if error is network-related
+  bool _isNetworkError(DioException e) {
+    return e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.connectionError;
+  }
+
+  // Helper: Convert severity to string
   String _severityToString(AccidentSeverity severity) {
     switch (severity) {
       case AccidentSeverity.severe:
@@ -301,6 +423,7 @@ class AccidentService {
     }
   }
 
+  // Helper: Convert status to string
   String _statusToString(AccidentStatus status) {
     switch (status) {
       case AccidentStatus.reported:
@@ -314,37 +437,62 @@ class AccidentService {
     }
   }
 
+  // ✅ Enhanced error handler with better Mongolian messages
   String _handleError(DioException e) {
+    print('❌ API Алдаа: ${e.type} - ${e.message}');
+
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
-        return 'Холболт хэтэрсэн. Дахин оролдоно уу.';
+        return 'Холболтын хугацаа дууслаа. Интернет холболтоо шалгаад дахин оролдоно уу.';
+
       case DioExceptionType.sendTimeout:
-        return 'Илгээх хугацаа дууслаа. Дахин оролдоно уу.';
+        return 'Өгөгдөл илгээх хугацаа дууслаа. Интернет холболтоо шалгаад дахин оролдоно уу.';
+
       case DioExceptionType.receiveTimeout:
-        return 'Хүлээх хугацаа дууслаа. Дахин оролдоно уу.';
+        return 'Хариу хүлээх хугацаа дууслаа. Интернет холболтоо шалгаад дахин оролдоно уу.';
+
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
-        final message = e.response?.data?['error'] ?? e.response?.data?['message'];
+        final message = e.response?.data?['error'] ??
+            e.response?.data?['message'];
 
         if (statusCode == 401) {
-          return 'Нэвтрэх шаардлагатай. Дахин нэвтэрнэ үү.';
+          return 'Нэвтрэх эрх дууссан. Дахин нэвтэрнэ үү.';
         } else if (statusCode == 403) {
-          return 'Энэ үйлдэл хийх эрхгүй байна.';
+          return 'Энэ үйлдэл хийх эрх танд байхгүй байна.';
         } else if (statusCode == 404) {
-          return 'Мэдээлэл олдсонгүй.';
+          return 'Хүссэн мэдээлэл олдсонгүй.';
+        } else if (statusCode == 429) {
+          return 'Хэт олон хүсэлт илгээлээ. Түр хүлээгээд дахин оролдоно уу.';
+        } else if (statusCode == 500) {
+          return 'Серверийн алдаа гарлаа. Түр хүлээгээд дахин оролдоно уу.';
+        } else if (statusCode == 503) {
+          return 'Үйлчилгээ түр зогссон байна. Түр хүлээгээд дахин оролдоно уу.';
         } else if (message != null) {
           return message.toString();
         }
-        return 'Сервер алдаа гарлаа. (${statusCode ?? 'Unknown'})';
+        return 'Серверээс алдаа буцаж ирлээ. (Код: ${statusCode ?? "??"})';
+
       case DioExceptionType.cancel:
         return 'Хүсэлт цуцлагдлаа.';
+
       case DioExceptionType.connectionError:
-        return 'Интернет холболт алдаатай байна.';
+        return 'Интернет холболт тасарсан байна. Холболтоо шалгаад дахин оролдоно уу.';
+
       case DioExceptionType.badCertificate:
-        return 'Аюулгүй байдлын гэрчилгээ буруу байна.';
+        return 'Аюулгүй байдлын гэрчилгээ буруу байна. Апп шинэчлэлт хэрэгтэй байж магадгүй.';
+
       case DioExceptionType.unknown:
       default:
-        return 'Тодорхойгүй алдаа гарлаа: ${e.message}';
+        if (e.error is SocketException) {
+          return 'Интернет холболт алдаатай байна. WiFi эсвэл мобайл датаа шалгана уу.';
+        }
+        return 'Тодорхойгүй алдаа гарлаа. Дахин оролдоно уу.';
     }
+  }
+
+  // Dispose method
+  void dispose() {
+    _dio.close();
   }
 }

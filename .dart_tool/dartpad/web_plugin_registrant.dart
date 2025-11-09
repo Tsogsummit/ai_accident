@@ -7,6 +7,7 @@
 // ignore_for_file: type=lint
 
 import 'package:camera_web/camera_web.dart';
+import 'package:connectivity_plus/src/connectivity_plus_web.dart';
 import 'package:flutter_secure_storage_web/flutter_secure_storage_web.dart';
 import 'package:geolocator_web/geolocator_web.dart';
 import 'package:google_maps_flutter_web/google_maps_flutter_web.dart';
@@ -18,6 +19,7 @@ import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 void registerPlugins([final Registrar? pluginRegistrar]) {
   final Registrar registrar = pluginRegistrar ?? webPluginRegistrar;
   CameraPlugin.registerWith(registrar);
+  ConnectivityPlusWebPlugin.registerWith(registrar);
   FlutterSecureStorageWeb.registerWith(registrar);
   GeolocatorPlugin.registerWith(registrar);
   GoogleMapsPlugin.registerWith(registrar);

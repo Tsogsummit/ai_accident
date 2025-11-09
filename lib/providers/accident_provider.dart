@@ -1,4 +1,4 @@
-// lib/providers/accident_provider.dart - FIXED VERSION
+// lib/providers/accident_provider.dart - IMPROVED VERSION
 import 'package:flutter/material.dart';
 import '../models/accident.dart';
 import '../services/accident_service.dart';
@@ -6,11 +6,25 @@ import '../services/accident_service.dart';
 class AccidentProvider extends ChangeNotifier {
   List<Accident> _accidents = [];
   List<Accident> _filteredAccidents = [];
+
+  // Loading states
   bool _isLoading = false;
+  bool _isRefreshing = false;
+  bool _isLoadingMore = false;
+
+  // Error handling
   String _error = '';
+  DateTime? _lastFetchTime;
+
+  // Upload progress
+  double _uploadProgress = 0.0;
+  bool _isUploading = false;
 
   // Filters
-  Set<AccidentSource> _sourceFilters = {AccidentSource.user, AccidentSource.camera};
+  Set<AccidentSource> _sourceFilters = {
+    AccidentSource.user,
+    AccidentSource.camera
+  };
   Set<AccidentSeverity> _severityFilters = {
     AccidentSeverity.minor,
     AccidentSeverity.moderate,
@@ -25,7 +39,12 @@ class AccidentProvider extends ChangeNotifier {
   List<Accident> get accidents => _filteredAccidents;
   List<Accident> get allAccidents => _accidents;
   bool get isLoading => _isLoading;
+  bool get isRefreshing => _isRefreshing;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get isUploading => _isUploading;
+  double get uploadProgress => _uploadProgress;
   String get error => _error;
+  DateTime? get lastFetchTime => _lastFetchTime;
   Set<AccidentSource> get sourceFilters => _sourceFilters;
   Set<AccidentSeverity> get severityFilters => _severityFilters;
   Set<AccidentStatus> get statusFilters => _statusFilters;
@@ -35,42 +54,83 @@ class AccidentProvider extends ChangeNotifier {
   // Statistics
   int get totalAccidents => _accidents.length;
   int get visibleAccidents => _filteredAccidents.length;
+  int get userAccidents =>
+      _accidents.where((a) => a.source == AccidentSource.user).length;
+  int get cameraAccidents =>
+      _accidents.where((a) => a.source == AccidentSource.camera).length;
+  int get severeAccidents =>
+      _accidents.where((a) => a.severity == AccidentSeverity.severe).length;
+  int get moderateAccidents =>
+      _accidents.where((a) => a.severity == AccidentSeverity.moderate).length;
+  int get minorAccidents =>
+      _accidents.where((a) => a.severity == AccidentSeverity.minor).length;
+  int get reportedAccidents =>
+      _accidents.where((a) => a.status == AccidentStatus.reported).length;
+  int get confirmedAccidents =>
+      _accidents.where((a) => a.status == AccidentStatus.confirmed).length;
+  int get resolvedAccidents =>
+      _accidents.where((a) => a.status == AccidentStatus.resolved).length;
 
-  int get userAccidents => _accidents.where((a) => a.source == AccidentSource.user).length;
-  int get cameraAccidents => _accidents.where((a) => a.source == AccidentSource.camera).length;
+  // ✅ Load accidents from API with improved error handling
+  Future<void> loadAccidents({bool forceRefresh = false}) async {
+    if (_isLoading || _isRefreshing) return;
 
-  int get severeAccidents => _accidents.where((a) => a.severity == AccidentSeverity.severe).length;
-  int get moderateAccidents => _accidents.where((a) => a.severity == AccidentSeverity.moderate).length;
-  int get minorAccidents => _accidents.where((a) => a.severity == AccidentSeverity.minor).length;
-
-  int get reportedAccidents => _accidents.where((a) => a.status == AccidentStatus.reported).length;
-  int get confirmedAccidents => _accidents.where((a) => a.status == AccidentStatus.confirmed).length;
-  int get resolvedAccidents => _accidents.where((a) => a.status == AccidentStatus.resolved).length;
-
-  // Load accidents from API
-  Future<void> loadAccidents() async {
     _isLoading = true;
     _error = '';
     notifyListeners();
 
     try {
-      _accidents = await _accidentService.getAllAccidents();
+      _accidents = await _accidentService.getAllAccidents(
+        forceRefresh: forceRefresh,
+      );
       _applyFilters();
+      _lastFetchTime = DateTime.now();
+      _error = '';
     } catch (e) {
       _error = e.toString();
       print('❌ Ослын мэдээлэл ачаалахад алдаа: $_error');
 
-      // Fallback to mock data for testing
-      _accidents = await _getMockAccidents();
-      _applyFilters();
+      // If no cached data, load mock data for development
+      if (_accidents.isEmpty) {
+        _accidents = await _getMockAccidents();
+        _applyFilters();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // Load nearby accidents
-  Future<void> loadNearbyAccidents(double latitude, double longitude, {double radiusKm = 5.0}) async {
+  // ✅ Refresh accidents (pull-to-refresh)
+  Future<void> refreshAccidents() async {
+    if (_isRefreshing) return;
+
+    _isRefreshing = true;
+    _error = '';
+    notifyListeners();
+
+    try {
+      _accidents = await _accidentService.getAllAccidents(
+        forceRefresh: true,
+      );
+      _applyFilters();
+      _lastFetchTime = DateTime.now();
+      _error = '';
+    } catch (e) {
+      _error = e.toString();
+      print('❌ Мэдээлэл шинэчлэхэд алдаа: $_error');
+    } finally {
+      _isRefreshing = false;
+      notifyListeners();
+    }
+  }
+
+  // ✅ Load nearby accidents
+  Future<void> loadNearbyAccidents(
+      double latitude,
+      double longitude, {
+        double radiusKm = 5.0,
+      }) async {
     _isLoading = true;
     _error = '';
     notifyListeners();
@@ -82,6 +142,7 @@ class AccidentProvider extends ChangeNotifier {
         radiusKm: radiusKm,
       );
       _applyFilters();
+      _lastFetchTime = DateTime.now();
     } catch (e) {
       _error = e.toString();
       print('❌ Ойр дахь ослын мэдээлэл ачаалахад алдаа: $_error');
@@ -91,7 +152,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Report new accident
+  // ✅ Report new accident with progress tracking
   Future<Accident?> reportAccident({
     required double latitude,
     required double longitude,
@@ -101,6 +162,11 @@ class AccidentProvider extends ChangeNotifier {
     var videoFile,
   }) async {
     try {
+      _isUploading = true;
+      _uploadProgress = 0.0;
+      _error = '';
+      notifyListeners();
+
       final accident = await _accidentService.reportAccident(
         latitude: latitude,
         longitude: longitude,
@@ -108,21 +174,31 @@ class AccidentProvider extends ChangeNotifier {
         severity: severity,
         imageFile: imageFile,
         videoFile: videoFile,
+        onProgress: (sent, total) {
+          _uploadProgress = sent / total;
+          notifyListeners();
+        },
       );
 
-      _accidents.add(accident);
+      _accidents.insert(0, accident); // Add to beginning
       _applyFilters();
+      _lastFetchTime = DateTime.now();
+
+      _isUploading = false;
+      _uploadProgress = 0.0;
       notifyListeners();
 
       return accident;
     } catch (e) {
       _error = e.toString();
+      _isUploading = false;
+      _uploadProgress = 0.0;
       notifyListeners();
       return null;
     }
   }
 
-  // Update accident
+  // ✅ Update accident
   Future<bool> updateAccident(
       String accidentId, {
         String? description,
@@ -130,6 +206,8 @@ class AccidentProvider extends ChangeNotifier {
         AccidentStatus? status,
       }) async {
     try {
+      _error = '';
+
       final updated = await _accidentService.updateAccident(
         accidentId,
         description: description,
@@ -152,13 +230,22 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Verify accident
+  // ✅ Verify accident
   Future<bool> verifyAccident(String accidentId) async {
     try {
+      _error = '';
+
       final success = await _accidentService.verifyAccident(accidentId);
       if (success) {
-        // Reload accidents to get updated verification count
-        await loadAccidents();
+        // Update local accident
+        final index = _accidents.indexWhere((a) => a.id == accidentId);
+        if (index != -1) {
+          _accidents[index] = _accidents[index].copyWith(
+            verificationCount: _accidents[index].verificationCount + 1,
+          );
+          _applyFilters();
+          notifyListeners();
+        }
       }
       return success;
     } catch (e) {
@@ -168,20 +255,22 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Report false accident
+  // ✅ Report false accident
   Future<bool> reportFalseAccident(
       String accidentId, {
         required String reason,
         String? comment,
       }) async {
     try {
+      _error = '';
+
       final success = await _accidentService.reportFalseAccident(
         accidentId,
         reason: reason,
         comment: comment,
       );
       if (success) {
-        await loadAccidents();
+        await loadAccidents(forceRefresh: true);
       }
       return success;
     } catch (e) {
@@ -191,9 +280,11 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Delete accident
+  // ✅ Delete accident
   Future<bool> deleteAccident(String accidentId) async {
     try {
+      _error = '';
+
       final success = await _accidentService.deleteAccident(accidentId);
       if (success) {
         _accidents.removeWhere((a) => a.id == accidentId);
@@ -290,6 +381,11 @@ class AccidentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ✅ Clear cache
+  void clearCache() {
+    _accidentService.clearCache();
+  }
+
   // Mock data for testing (when API unavailable)
   Future<List<Accident>> _getMockAccidents() async {
     await Future.delayed(Duration(seconds: 1));
@@ -363,5 +459,11 @@ class AccidentProvider extends ChangeNotifier {
         verificationCount: 5,
       ),
     ];
+  }
+
+  @override
+  void dispose() {
+    _accidentService.dispose();
+    super.dispose();
   }
 }
