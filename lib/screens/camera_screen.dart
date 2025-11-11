@@ -1,11 +1,10 @@
-// ====================================================
-
-// lib/screens/camera_screen.dart - FIXED VERSION
-// 🇲🇳 КАМЕР ХУУДАС
+// lib/screens/camera_screen.dart - IMPROVED WITH BETTER ERROR HANDLING
+// 🇲🇳 КАМЕР ХУУДАС - Алдаа засварласан хувилбар
 
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({Key? key}) : super(key: key);
@@ -19,46 +18,130 @@ class _CameraScreenState extends State<CameraScreen> {
   List<CameraDescription>? _cameras;
   bool _isInitialized = false;
   bool _isMonitoring = false;
+  String? _error;
+  bool _permissionDenied = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
+    _initializeCameraWithTimeout();
+  }
+
+  // ✅ Timeout-тэй камер эхлүүлэх (5 секунд)
+  Future<void> _initializeCameraWithTimeout() async {
+    try {
+      await _initializeCamera().timeout(
+        Duration(seconds: 5),
+        onTimeout: () {
+          if (mounted) {
+            setState(() {
+              _error = 'Камер эхлүүлэх хугацаа дууслаа. Дахин оролдоно уу.';
+            });
+          }
+          throw TimeoutException('Camera initialization timeout');
+        },
+      );
+    } on TimeoutException catch (e) {
+      print('⏱️ Камер эхлүүлэх timeout: $e');
+      if (mounted) {
+        setState(() {
+          _error = 'Камер эхлүүлэх хугацаа дууслаа';
+        });
+      }
+    } catch (e) {
+      print('❌ Камер эхлүүлэхэд алдаа: $e');
+      if (mounted) {
+        setState(() {
+          _error = 'Камер эхлүүлэхэд алдаа гарлаа: $e';
+        });
+      }
+    }
   }
 
   Future<void> _initializeCamera() async {
+    print('📷 Камер эхлүүлж байна...');
+
+    // 1. Зөвшөөрөл шалгах
     final permission = await Permission.camera.request();
+    print('📷 Камерын зөвшөөрөл: $permission');
 
     if (permission != PermissionStatus.granted) {
-      _showPermissionDialog();
+      if (mounted) {
+        setState(() {
+          _permissionDenied = true;
+          _error = 'Камерын зөвшөөрөл олгогдоогүй';
+        });
+      }
       return;
     }
 
+    // 2. Камернуудыг олох
     try {
+      print('📷 Камернуудыг хайж байна...');
       _cameras = await availableCameras();
+      print('📷 Олдсон камернууд: ${_cameras?.length ?? 0}');
 
-      if (_cameras != null && _cameras!.isNotEmpty) {
-        _cameraController = CameraController(
-          _cameras![0],
-          ResolutionPreset.high,
-          enableAudio: false,
-        );
-
-        await _cameraController!.initialize();
-
+      if (_cameras == null || _cameras!.isEmpty) {
         if (mounted) {
           setState(() {
-            _isInitialized = true;
+            _error = 'Камер олдсонгүй';
           });
         }
+        return;
+      }
+
+      // 3. Камер controller үүсгэх
+      print('📷 Камер controller үүсгэж байна...');
+      _cameraController = CameraController(
+        _cameras![0],
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
+
+      // 4. Камер эхлүүлэх
+      print('📷 Камер эхлүүлж байна...');
+      await _cameraController!.initialize();
+      print('✅ Камер амжилттай эхэллээ');
+
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          _error = null;
+        });
       }
     } catch (e) {
-      print('Камер эхлүүлэхэд алдаа: $e');
-      _showErrorDialog('Камер эхлүүлэхэд алдаа гарлаа: $e');
+      print('❌ Камер эхлүүлэхэд алдаа: $e');
+      if (mounted) {
+        setState(() {
+          _error = 'Камер эхлүүлэхэд алдаа гарлаа: $e';
+        });
+      }
     }
   }
 
+  // ✅ Камер дахин эхлүүлэх
+  Future<void> _retryInitialization() async {
+    if (mounted) {
+      setState(() {
+        _error = null;
+        _isInitialized = false;
+        _permissionDenied = false;
+      });
+    }
+    await _initializeCameraWithTimeout();
+  }
+
   void _toggleMonitoring() {
+    if (!_isInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Камер эхлэхийг хүлээнэ үү'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isMonitoring = !_isMonitoring;
     });
@@ -85,7 +168,10 @@ class _CameraScreenState extends State<CameraScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Камерын зөвшөөрөл шаардлагатай'),
-        content: const Text('Энэ апп нь осол илрүүлэхийн тулд камерын зөвшөөрөл хэрэгтэй. Тохиргооноос зөвшөөрөл өгнө үү.'),
+        content: const Text(
+          'Энэ апп нь осол илрүүлэхийн тулд камерын зөвшөөрөл хэрэгтэй. '
+              'Тохиргооноос зөвшөөрөл өгнө үү.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -97,22 +183,6 @@ class _CameraScreenState extends State<CameraScreen> {
               openAppSettings();
             },
             child: const Text('Тохиргоо нээх'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Камерын алдаа'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Хаах'),
           ),
         ],
       ),
@@ -145,9 +215,32 @@ class _CameraScreenState extends State<CameraScreen> {
                 children: [
                   Icon(Icons.fiber_manual_record, size: 12, color: Colors.white),
                   SizedBox(width: 4),
-                  Text('АЖИЛЛАЖ БАЙНА', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  Text(
+                    'АЖИЛЛАЖ БАЙНА',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
+            ),
+          // Debug info button
+          if (_error != null)
+            IconButton(
+              icon: Icon(Icons.info_outline),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('Алдааны мэдээлэл'),
+                    content: Text(_error ?? 'Тодорхойгүй алдаа'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Хаах'),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
         ],
       ),
@@ -156,19 +249,120 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Widget _buildBody() {
+    // ✅ Permission denied state
+    if (_permissionDenied) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.camera_alt_outlined, size: 80, color: Colors.red),
+              SizedBox(height: 24),
+              Text(
+                'Камерын зөвшөөрөл хэрэгтэй',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 12),
+              Text(
+                'AI осол илрүүлэхийн тулд камер ашиглах зөвшөөрөл өгнө үү.',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _showPermissionDialog,
+                icon: Icon(Icons.settings),
+                label: Text('Тохиргоо нээх'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+              SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: _retryInitialization,
+                icon: Icon(Icons.refresh),
+                label: Text('Дахин оролдох'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ✅ Error state
+    if (_error != null && !_isInitialized) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 80, color: Colors.red),
+              SizedBox(height: 24),
+              Text(
+                'Алдаа гарлаа',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 12),
+              Text(
+                _error!,
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _retryInitialization,
+                icon: Icon(Icons.refresh),
+                label: Text('Дахин оролдох'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+              if (_permissionDenied) ...[
+                SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    openAppSettings();
+                  },
+                  icon: Icon(Icons.settings),
+                  label: Text('Тохиргоо нээх'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ✅ Loading state
     if (!_isInitialized) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
             Text('Камер эхлүүлж байна...'),
+            SizedBox(height: 24),
+            Text(
+              'Хэтэрхий удаж байвал "Дахин оролдох" дарна уу',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: _retryInitialization,
+              icon: Icon(Icons.refresh),
+              label: Text('Дахин оролдох'),
+            ),
           ],
         ),
       );
     }
 
+    // ✅ Camera preview (success state)
     return Stack(
       children: [
         // Camera preview
@@ -245,7 +439,10 @@ class _CameraScreenState extends State<CameraScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _isMonitoring ? Colors.red : Colors.green,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
