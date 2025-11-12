@@ -1,11 +1,12 @@
-// ====================================================
-
-// lib/screens/camera_screen.dart - FIXED VERSION
-// 🇲🇳 КАМЕР ХУУДАС
-
+// lib/screens/camera_screen.dart - ВИДЕО БИЧЛЭГТЭЙ
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
+import 'dart:async';
+import 'dart:io';
+import '../providers/accident_provider.dart';
+import '../models/accident.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({Key? key}) : super(key: key);
@@ -18,110 +19,256 @@ class _CameraScreenState extends State<CameraScreen> {
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
   bool _isInitialized = false;
-  bool _isMonitoring = false;
+  bool _isRecording = false;
+  String? _error;
+  bool _permissionDenied = false;
+
+  // Video recording
+  String? _videoPath;
+  Timer? _recordingTimer;
+  int _recordingSeconds = 0;
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
+    _initializeCameraWithTimeout();
+  }
+
+  Future<void> _initializeCameraWithTimeout() async {
+    try {
+      await _initializeCamera().timeout(
+        Duration(seconds: 5),
+        onTimeout: () {
+          if (mounted) {
+            setState(() => _error = 'Камер эхлүүлэх хугацаа дууслаа');
+          }
+          throw TimeoutException('Camera timeout');
+        },
+      );
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Камер эхлүүлэхэд алдаа: $e');
+    }
   }
 
   Future<void> _initializeCamera() async {
     final permission = await Permission.camera.request();
-
     if (permission != PermissionStatus.granted) {
-      _showPermissionDialog();
+      if (mounted) setState(() {
+        _permissionDenied = true;
+        _error = 'Камерын зөвшөөрөл олгогдоогүй';
+      });
       return;
     }
 
-    try {
-      _cameras = await availableCameras();
+    _cameras = await availableCameras();
+    if (_cameras == null || _cameras!.isEmpty) {
+      if (mounted) setState(() => _error = 'Камер олдсонгүй');
+      return;
+    }
 
-      if (_cameras != null && _cameras!.isNotEmpty) {
-        _cameraController = CameraController(
-          _cameras![0],
-          ResolutionPreset.high,
-          enableAudio: false,
-        );
+    _cameraController = CameraController(
+      _cameras![0],
+      ResolutionPreset.high,
+      enableAudio: true,
+    );
 
-        await _cameraController!.initialize();
+    await _cameraController!.initialize();
+    if (mounted) setState(() {
+      _isInitialized = true;
+      _error = null;
+    });
+  }
 
-        if (mounted) {
-          setState(() {
-            _isInitialized = true;
-          });
-        }
-      }
-    } catch (e) {
-      print('Камер эхлүүлэхэд алдаа: $e');
-      _showErrorDialog('Камер эхлүүлэхэд алдаа гарлаа: $e');
+  Future<void> _toggleRecording() async {
+    if (!_isInitialized || _cameraController == null) return;
+
+    if (_isRecording) {
+      await _stopRecording();
+    } else {
+      await _startRecording();
     }
   }
 
-  void _toggleMonitoring() {
-    setState(() {
-      _isMonitoring = !_isMonitoring;
-    });
+  Future<void> _startRecording() async {
+    try {
+      await _cameraController!.startVideoRecording();
+      setState(() {
+        _isRecording = true;
+        _recordingSeconds = 0;
+      });
 
-    if (_isMonitoring) {
+      _recordingTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+        if (mounted) setState(() => _recordingSeconds++);
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('AI хяналт эхэллээ - Ослыг хайж байна'),
+        SnackBar(content: Text('Бичлэг эхэллээ'), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Бичлэг эхлэхэд алдаа: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    try {
+      _recordingTimer?.cancel();
+      final video = await _cameraController!.stopVideoRecording();
+      setState(() {
+        _isRecording = false;
+        _videoPath = video.path;
+      });
+
+      _showVideoPreview();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Бичлэг зогсоохд алдаа: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showVideoPreview() {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Бичлэг бэлэн',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('Хугацаа: ${_formatDuration(_recordingSeconds)}'),
+            SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      _deleteVideo();
+                      Navigator.pop(context);
+                    },
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    label: Text('Устгах', style: TextStyle(color: Colors.red)),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: Colors.red),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _uploadVideo();
+                    },
+                    icon: Icon(Icons.upload),
+                    label: Text('Илгээх'),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: Colors.green,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _deleteVideo() {
+    if (_videoPath != null) {
+      try {
+        File(_videoPath!).deleteSync();
+        setState(() => _videoPath = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Бичлэг устгагдлаа'), backgroundColor: Colors.orange),
+        );
+      } catch (e) {
+        print('Delete error: $e');
+      }
+    }
+  }
+
+  Future<void> _uploadVideo() async {
+    if (_videoPath == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Бичлэг илгээж байна...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final provider = Provider.of<AccidentProvider>(context, listen: false);
+
+      // Get current location (you need to implement this)
+      // For now using dummy coordinates
+      final accident = await provider.reportAccident(
+        latitude: 47.9184,
+        longitude: 106.9177,
+        description: 'Камераас бичигдсэн осол',
+        severity: AccidentSeverity.moderate,
+        videoFile: File(_videoPath!),
+      );
+
+      _deleteVideo(); // Delete after successful upload
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ослын мэдээлэл амжилттай илгээгдлээ'),
           backgroundColor: Colors.green,
         ),
       );
-    } else {
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('AI хяналт зогслоо'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: Text('Илгээхэд алдаа: $e'),
+          backgroundColor: Colors.red,
         ),
       );
     }
   }
 
-  void _showPermissionDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Камерын зөвшөөрөл шаардлагатай'),
-        content: const Text('Энэ апп нь осол илрүүлэхийн тулд камерын зөвшөөрөл хэрэгтэй. Тохиргооноос зөвшөөрөл өгнө үү.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Цуцлах'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              openAppSettings();
-            },
-            child: const Text('Тохиргоо нээх'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Камерын алдаа'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Хаах'),
-          ),
-        ],
-      ),
-    );
+  String _formatDuration(int seconds) {
+    final mins = (seconds / 60).floor();
+    final secs = seconds % 60;
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
   @override
   void dispose() {
+    _recordingTimer?.cancel();
     _cameraController?.dispose();
+    if (_videoPath != null) _deleteVideo();
     super.dispose();
   }
 
@@ -129,35 +276,62 @@ class _CameraScreenState extends State<CameraScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Осол Илрүүлэлт'),
+        title: Text('AI Осол Илрүүлэлт'),
         backgroundColor: Colors.blue,
-        actions: [
-          if (_isMonitoring)
-            Container(
-              margin: const EdgeInsets.all(8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.fiber_manual_record, size: 12, color: Colors.white),
-                  SizedBox(width: 4),
-                  Text('АЖИЛЛАЖ БАЙНА', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-        ],
       ),
       body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
+    if (_permissionDenied) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.camera_alt_outlined, size: 80, color: Colors.red),
+              SizedBox(height: 24),
+              Text('Камерын зөвшөөрөл хэрэгтэй', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () => openAppSettings(),
+                icon: Icon(Icons.settings),
+                label: Text('Тохиргоо нээх'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_error != null && !_isInitialized) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 80, color: Colors.red),
+              SizedBox(height: 24),
+              Text('Алдаа гарлаа', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center),
+              SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _initializeCameraWithTimeout,
+                icon: Icon(Icons.refresh),
+                label: Text('Дахин оролдох'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (!_isInitialized) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -171,87 +345,76 @@ class _CameraScreenState extends State<CameraScreen> {
 
     return Stack(
       children: [
-        // Camera preview
-        Positioned.fill(
-          child: CameraPreview(_cameraController!),
-        ),
+        Positioned.fill(child: CameraPreview(_cameraController!)),
 
-        // Overlay
-        Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withOpacity(0.3),
-                  Colors.transparent,
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.7),
-                ],
-                stops: const [0.0, 0.3, 0.7, 1.0],
-              ),
-            ),
-          ),
-        ),
-
-        // Bottom controls
-        Positioned(
-          bottom: 50,
-          left: 0,
-          right: 0,
-          child: Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.all(16),
+        // Recording indicator
+        if (_isRecording)
+          Positioned(
+            top: 16,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Column(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      _isMonitoring ? Icons.visibility : Icons.visibility_off,
-                      color: _isMonitoring ? Colors.green : Colors.grey,
-                      size: 32,
-                    ),
-                    const SizedBox(height: 8),
+                    Icon(Icons.fiber_manual_record, color: Colors.white, size: 16),
+                    SizedBox(width: 8),
                     Text(
-                      _isMonitoring
-                          ? 'AI хяналт идэвхтэй'
-                          : 'AI хяналт идэвхгүй',
-                      style: TextStyle(
-                        color: _isMonitoring ? Colors.green : Colors.grey,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      _formatDuration(_recordingSeconds),
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
-                    if (_isMonitoring)
-                      const Text(
-                        'Ослыг хайж байна...',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
                   ],
                 ),
               ),
+            ),
+          ),
 
-              const SizedBox(height: 20),
-
-              ElevatedButton.icon(
-                onPressed: _toggleMonitoring,
-                icon: Icon(_isMonitoring ? Icons.stop : Icons.play_arrow),
-                label: Text(_isMonitoring ? 'Зогсоох' : 'Эхлүүлэх'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isMonitoring ? Colors.red : Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
+        // Close button (X)
+        if (_videoPath != null)
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
               ),
-            ],
+              child: IconButton(
+                icon: Icon(Icons.close, color: Colors.white),
+                onPressed: () {
+                  _deleteVideo();
+                },
+              ),
+            ),
+          ),
+
+        // Record button
+        Positioned(
+          bottom: 40,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: GestureDetector(
+              onTap: _toggleRecording,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _isRecording ? Colors.red : Colors.white,
+                  border: Border.all(color: Colors.red, width: 4),
+                ),
+                child: _isRecording
+                    ? Icon(Icons.stop, color: Colors.white, size: 40)
+                    : Icon(Icons.videocam, color: Colors.red, size: 40),
+              ),
+            ),
           ),
         ),
       ],
