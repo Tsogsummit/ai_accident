@@ -1,4 +1,3 @@
-import 'package:ai_accident/screens/camera_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';

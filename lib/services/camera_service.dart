@@ -121,7 +121,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('${AuthService.baseUrl}/videos/upload'),
+        Uri.parse('${AuthService.baseUrl}:3003/videos/upload'),
       );
 
       request.headers['Authorization'] = 'Bearer $token';
