@@ -1174,6 +1174,7 @@
       "dependencies": [
         "source_span"
       ]
+<<<<<<< HEAD
     },
     {
       "name": "video_player",
@@ -1220,6 +1221,8 @@
         "flutter",
         "video_player_platform_interface"
       ]
+=======
+>>>>>>> 8a7fc3c07c949b63f557bdca610ef8b8c44abfd7
     }
   ],
   "configVersion": 1
