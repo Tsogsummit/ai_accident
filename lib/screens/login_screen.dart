@@ -71,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Icon(
                   Icons.traffic,
                   size: 80,
-                  color: Colors.red,
+                  color: Colors.blue,
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -100,9 +100,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     labelText: 'Утасны дугаар',
                     hintText: '+976XXXXXXXX',
-                    prefixIcon: const Icon(Icons.phone),
+                    prefixIcon: const Icon(Icons.phone, color: Colors.blue),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.blue, width: 2),
                     ),
                   ),
                   validator: (value) {
@@ -123,10 +127,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: 'Нууц үг',
-                    prefixIcon: const Icon(Icons.lock),
+                    prefixIcon: const Icon(Icons.lock, color: Colors.blue),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.blue,
                       ),
                       onPressed: () {
                         setState(() => _obscurePassword = !_obscurePassword);
@@ -134,6 +139,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.blue, width: 2),
                     ),
                   ),
                   validator: (value) {
@@ -149,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -192,6 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Бүртгүүлэх',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
+                          color: Colors.blue,
                         ),
                       ),
                     ),

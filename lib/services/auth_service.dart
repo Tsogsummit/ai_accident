@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://YOUR_SERVER_IP:3000'; // Өөрийн IP хаягаа оруулна уу
+  static const String baseUrl = 'http://10.0.2.2:3001'; // Өөрийн IP хаягаа оруулна уу
 
   // Токен хадгалах
   Future<void> saveTokens(String accessToken, String refreshToken) async {

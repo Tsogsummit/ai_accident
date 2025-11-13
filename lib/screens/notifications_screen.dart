@@ -12,6 +12,7 @@ class NotificationsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Мэдэгдэл'),
         backgroundColor: Colors.blue,
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.mark_email_read),
@@ -70,4 +71,3 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 }
-

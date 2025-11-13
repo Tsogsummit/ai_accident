@@ -298,6 +298,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
       appBar: AppBar(
         title: Text('Замын осол'),
         backgroundColor: Colors.blue,
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: Icon(Icons.my_location),

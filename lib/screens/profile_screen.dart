@@ -1,5 +1,5 @@
 // lib/screens/profile_screen.dart - FIXED VERSION
-// 🇲🇳 ПРОФАЙЛ ХЭСЭГ - Монгол хэлтэй, Verified устгасан
+// 🇲🇳 ПРОФАЙЛ ХЭСЭГ - Монгол хэлтэй
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +14,7 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Профайл'),
         backgroundColor: Colors.blue,
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
