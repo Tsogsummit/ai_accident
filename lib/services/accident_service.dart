@@ -1,14 +1,15 @@
-// lib/services/accident_service.dart - IMPROVED VERSION
+// lib/services/accident_service.dart - TOKEN FIXED
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
 import '../models/accident.dart';
 import '../config/api_config.dart';
+import 'auth_service.dart';
 
 class AccidentService {
   late final Dio _dio;
-  String? _authToken;
+  final AuthService _authService = AuthService();
 
   // Cache for accidents
   List<Accident>? _cachedAccidents;
@@ -47,42 +48,58 @@ class AccidentService {
           requestBody: true,
           responseBody: true,
           error: true,
-          requestHeader: false,
+          requestHeader: true, // ✅ Log headers
           responseHeader: false,
         ),
       );
     }
 
-    // ✅ Add auth token interceptor
+    // ✅ Add auth token interceptor - MOST IMPORTANT!
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
-          if (_authToken != null) {
-            options.headers['Authorization'] = 'Bearer $_authToken';
+        onRequest: (options, handler) async {
+          // ✅ Get token and add to header
+          final token = await _authService.getAccessToken();
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+            print('✅ Token нэмэгдлээ: ${token.substring(0, 20)}...');
+          } else {
+            print('⚠️ Token байхгүй байна!');
           }
           return handler.next(options);
         },
         onError: (error, handler) async {
           // Handle 401 errors (unauthorized)
           if (error.response?.statusCode == 401) {
-            // Token expired or invalid - clear it
-            _authToken = null;
-            // You can add auto-refresh logic here
+            print('⚠️ 401 Unauthorized - Token хүчингүй');
+            
+            // Try to refresh token
+            final refreshed = await _authService.refreshAccessToken();
+            
+            if (refreshed) {
+              print('✅ Token шинэчлэгдлээ, дахин оролдож байна...');
+              
+              // Retry request with new token
+              final newToken = await _authService.getAccessToken();
+              error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+              
+              try {
+                final response = await _dio.fetch(error.requestOptions);
+                return handler.resolve(response);
+              } catch (e) {
+                print('❌ Retry амжилтгүй: $e');
+                return handler.next(error);
+              }
+            } else {
+              print('❌ Token шинэчлэх амжилтгүй - logout хийх хэрэгтэй');
+              // Token expired and can't refresh - need to logout
+              await _authService.logout();
+            }
           }
           return handler.next(error);
         },
       ),
     );
-  }
-
-  // Set JWT token for authentication
-  void setAuthToken(String token) {
-    _authToken = token;
-  }
-
-  // Clear auth token
-  void clearAuthToken() {
-    _authToken = null;
   }
 
   // Check if cache is valid
@@ -115,10 +132,13 @@ class AccidentService {
   }) async {
     // Return cached data if valid
     if (!forceRefresh && _isCacheValid()) {
+      print('📦 Cache-с ослын мэдээлэл буцаах: ${_cachedAccidents!.length}');
       return _cachedAccidents!;
     }
 
     try {
+      print('📡 Backend-с ослын мэдээлэл татаж байна...');
+      
       Map<String, dynamic> queryParams = {};
 
       if (source != null) {
@@ -143,6 +163,8 @@ class AccidentService {
         queryParameters: queryParams,
       );
 
+      print('📥 Response status: ${response.statusCode}');
+
       List<Accident> accidents = [];
 
       if (response.data is Map && response.data['success'] == true) {
@@ -154,12 +176,17 @@ class AccidentService {
             .toList();
       }
 
+      print('✅ ${accidents.length} осол ачаалагдлаа');
+
       // Update cache
       _cachedAccidents = accidents;
       _cacheTimestamp = DateTime.now();
 
       return accidents;
     } on DioException catch (e) {
+      print('❌ DioException: ${e.type} - ${e.message}');
+      print('❌ Response: ${e.response?.data}');
+      
       // If there's cached data and network error, return cached data
       if (_cachedAccidents != null && _isNetworkError(e)) {
         print('⚠️ Сүлжээний алдаа - кэш өгөгдөл ашиглаж байна');
@@ -167,6 +194,7 @@ class AccidentService {
       }
       throw _handleError(e);
     } catch (e) {
+      print('❌ Unexpected error: $e');
       throw 'Тодорхойгүй алдаа гарлаа: $e';
     }
   }
@@ -449,6 +477,8 @@ class AccidentService {
   // ✅ Enhanced error handler with better Mongolian messages
   String _handleError(DioException e) {
     print('❌ API Алдаа: ${e.type} - ${e.message}');
+    print('❌ Response status: ${e.response?.statusCode}');
+    print('❌ Response data: ${e.response?.data}');
 
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
@@ -466,7 +496,7 @@ class AccidentService {
             e.response?.data?['error'] ?? e.response?.data?['message'];
 
         if (statusCode == 401) {
-          return 'Нэвтрэх эрх дууссан. Дахин нэвтэрнэ үү.';
+          return 'Нэвтрэх эрх дууссан. Дахин нэвтрэнэ үү.';
         } else if (statusCode == 403) {
           return 'Энэ үйлдэл хийх эрх танд байхгүй байна.';
         } else if (statusCode == 404) {

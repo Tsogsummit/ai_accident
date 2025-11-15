@@ -1,13 +1,13 @@
+// lib/services/auth_service.dart - ЗАСВАРЛАСАН
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 
 class AuthService {
-  // ✅ Use ApiConfig for URLs
   static String get baseUrl => ApiConfig.authServiceUrl;
 
-  // Токен хадгалах
+  // ✅ Токен хадгалах
   Future<void> saveTokens(String accessToken, String refreshToken) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', accessToken);
@@ -15,20 +15,26 @@ class AuthService {
     print('✅ Токен хадгалагдлаа');
   }
 
-  // Токен авах
+  // ✅ Токен авах
   Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('access_token');
   }
 
-  // Хэрэглэгчийн мэдээлэл хадгалах
+  // ✅ Refresh token авах
+  Future<String?> getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('refresh_token');
+  }
+
+  // ✅ Хэрэглэгчийн мэдээлэл хадгалах
   Future<void> saveUser(Map<String, dynamic> user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user', jsonEncode(user));
-    print('✅ Хэрэглэгчийн мэдээлэл хадгалагдлаа');
+    print('✅ Хэрэглэгчийн мэдээлэл хадгалагдлаа: ${user['name']}');
   }
 
-  // Хэрэглэгчийн мэдээлэл авах
+  // ✅ Хэрэглэгчийн мэдээлэл авах
   Future<Map<String, dynamic>?> getUser() async {
     final prefs = await SharedPreferences.getInstance();
     final userStr = prefs.getString('user');
@@ -44,7 +50,7 @@ class AuthService {
     return user?['id'] as int?;
   }
 
-  // ✅ НЭВТРЭХ - ApiConfig ашиглах
+  // ✅ НЭВТРЭХ
   Future<Map<String, dynamic>> login(String phone, String password) async {
     print('🔐 Нэвтэрч байна...');
     print('📡 URL: ${ApiConfig.loginEndpoint}');
@@ -72,7 +78,7 @@ class AuthService {
       if (response.statusCode == 200 && data['success']) {
         await saveTokens(data['accessToken'], data['refreshToken']);
         await saveUser(data['user']);
-        print('✅ Амжилттай нэвтэрлээ');
+        print('✅ Амжилттай нэвтэрлээ: ${data['user']['name']}');
         return {'success': true, 'user': data['user']};
       } else {
         print('❌ Нэвтрэлт амжилтгүй: ${data['error']}');
@@ -87,7 +93,7 @@ class AuthService {
     }
   }
 
-  // ✅ БҮРТГҮҮЛЭХ - ApiConfig ашиглах
+  // ✅ БҮРТГҮҮЛЭХ
   Future<Map<String, dynamic>> register({
     required String phone,
     required String name,
@@ -137,7 +143,7 @@ class AuthService {
     }
   }
 
-  // ✅ ГАРАХ - ApiConfig ашиглах
+  // ✅ ГАРАХ - Цэвэрхэн logout
   Future<void> logout() async {
     print('🚪 Гарч байна...');
     
@@ -158,16 +164,18 @@ class AuthService {
       }
     }
 
+    // ✅ Бүх мэдээллийг устгах
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
     await prefs.remove('user');
-    print('✅ Локал токен устгагдлаа');
+    print('✅ Локал мэдээлэл устгагдлаа');
   }
 
-  // Нэвтэрсэн эсэхийг шалгах
+  // ✅ Нэвтэрсэн эсэхийг шалгах
   Future<bool> isLoggedIn() async {
     final token = await getAccessToken();
-    final isLoggedIn = token != null;
+    final user = await getUser();
+    final isLoggedIn = token != null && user != null;
     print('🔍 Нэвтэрсэн эсэх: $isLoggedIn');
     return isLoggedIn;
   }
@@ -177,8 +185,7 @@ class AuthService {
     print('🔄 Токен шинэчилж байна...');
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final refreshToken = prefs.getString('refresh_token');
+      final refreshToken = await getRefreshToken();
 
       if (refreshToken == null) {
         print('❌ Refresh token олдсонгүй');
@@ -199,6 +206,8 @@ class AuthService {
         return true;
       } else {
         print('❌ Токен шинэчлэх алдаа: ${data['error']}');
+        // ✅ Токен хүчингүй бол бүх мэдээллийг устгах
+        await logout();
         return false;
       }
     } catch (e) {
@@ -206,10 +215,6 @@ class AuthService {
       return false;
     }
   }
-
-  // Backward compatibility
-  @Deprecated('Use refreshAccessToken instead')
-  Future<bool> refreshToken() => refreshAccessToken();
 
   // ✅ ПРОФАЙЛ АВАХ
   Future<Map<String, dynamic>?> getProfile() async {
@@ -230,11 +235,24 @@ class AuthService {
         },
       ).timeout(Duration(seconds: 10));
 
+      print('📥 Profile response: ${response.statusCode}');
+
+      if (response.statusCode == 401) {
+        // ✅ Токен хүчингүй - шинэчлэх оролдлого
+        print('⚠️ Токен хүчингүй, шинэчилж байна...');
+        final refreshed = await refreshAccessToken();
+        if (refreshed) {
+          // Дахин оролдох
+          return await getProfile();
+        }
+        return null;
+      }
+
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success']) {
         await saveUser(data['user']);
-        print('✅ Профайл авагдлаа');
+        print('✅ Профайл авагдлаа: ${data['user']['name']}');
         return data['user'];
       } else {
         print('❌ Профайл авах алдаа: ${data['error']}');
@@ -245,4 +263,8 @@ class AuthService {
       return null;
     }
   }
+
+  // Backward compatibility
+  @Deprecated('Use refreshAccessToken instead')
+  Future<bool> refreshToken() => refreshAccessToken();
 }

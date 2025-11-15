@@ -1,3 +1,4 @@
+// lib/main.dart - ЗАСВАРЛАСАН
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
@@ -25,14 +26,13 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
           
-          // ✅ CardTheme нэмсэн - бүх Card widget-д автоматаар хэрэглэгдэнэ
           cardTheme: CardThemeData(
             elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
             margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            clipBehavior: Clip.antiAlias, // Зургийг card-ын дотор зөв харуулах
+            clipBehavior: Clip.antiAlias,
           ),
         ),
         home: const AuthCheck(),
@@ -61,16 +61,39 @@ class _AuthCheckState extends State<AuthCheck> {
   Future<void> _checkAuth() async {
     await Future.delayed(const Duration(seconds: 1)); // Splash screen
 
-    final isLoggedIn = await _authService.isLoggedIn();
+    try {
+      final isLoggedIn = await _authService.isLoggedIn();
 
-    if (mounted) {
+      if (!mounted) return;
+
       setState(() => _isLoading = false);
 
       if (isLoggedIn) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        // ✅ Check if token is still valid by getting profile
+        final profile = await _authService.getProfile();
+        
+        if (profile != null) {
+          // Valid token - go to home
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        } else {
+          // Invalid token - logout and go to login
+          await _authService.logout();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        }
       } else {
+        // Not logged in - go to login
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
+    } catch (e) {
+      print('❌ Auth check error: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
         );

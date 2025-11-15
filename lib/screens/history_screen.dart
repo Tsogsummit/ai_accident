@@ -1,10 +1,10 @@
-// lib/screens/history_screen.dart - FIXED VERSION
-// 🇲🇳 ТҮҮХ ХУУДАС (Reports -> History)
-
+// lib/screens/history_screen.dart - ЗАСВАРЛАСАН (TOKEN FIX)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';
 import '../models/accident.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -18,11 +18,96 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
   @override
   bool get wantKeepAlive => true;
 
+  final AuthService _authService = AuthService();
   String _selectedFilter = 'all'; // all, user, camera
+  bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAndLoadData();
+  }
+
+  // ✅ Эхлээд token шалгаад, дараа нь өгөгдөл ачаалах
+  Future<void> _initializeAndLoadData() async {
+    // Check if logged in
+    final token = await _authService.getAccessToken();
+    final user = await _authService.getUser();
+    
+    if (token == null || user == null) {
+      // ✅ Нэвтрээгүй бол Login screen руу шилжүүлэх
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Нэвтрэх шаардлагатай'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    // ✅ Logged in - load data
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+      
+      final provider = Provider.of<AccidentProvider>(context, listen: false);
+      
+      try {
+        await provider.loadAccidents();
+      } catch (e) {
+        print('❌ Load accidents error: $e');
+        // Don't navigate away on error, just show error in UI
+      }
+    }
+  }
+
+  Future<void> _refreshData() async {
+    // Don't check token here - let the API call handle it
+    if (mounted) {
+      final provider = Provider.of<AccidentProvider>(context, listen: false);
+      
+      try {
+        await provider.loadAccidents(forceRefresh: true);
+        
+        // Clear any previous errors
+        provider.clearError();
+      } catch (e) {
+        print('❌ Refresh error: $e');
+        // Error will be shown in UI through provider
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+
+    if (!_isInitialized) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Ослын түүх'),
+          backgroundColor: Colors.blue,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Эхлүүлж байна...'),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -74,9 +159,7 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
           ),
           IconButton(
             icon: Icon(Icons.refresh),
-            onPressed: () {
-              context.read<AccidentProvider>().loadAccidents();
-            },
+            onPressed: _refreshData,
             tooltip: 'Шинэчлэх',
           ),
         ],
@@ -96,7 +179,57 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
             );
           }
 
+          // ✅ Check for authentication error
           if (provider.error.isNotEmpty) {
+            final errorLower = provider.error.toLowerCase();
+            
+            if (errorLower.contains('нэвтрэх') || 
+                errorLower.contains('эрх дууссан') ||
+                errorLower.contains('unauthorized') ||
+                errorLower.contains('401')) {
+              // Token expired - show button to re-login
+              return Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.lock_outline, size: 64, color: Colors.orange),
+                      SizedBox(height: 16),
+                      Text(
+                        'Нэвтрэх эрх дууссан',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Та дахин нэвтрэх шаардлагатай',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                      SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await _authService.logout();
+                          if (mounted) {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              (route) => false,
+                            );
+                          }
+                        },
+                        icon: Icon(Icons.login),
+                        label: Text('Дахин нэвтрэх'),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            // Other errors
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -105,10 +238,17 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   SizedBox(height: 16),
                   Text('Алдаа гарлаа', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   SizedBox(height: 8),
-                  Text(provider.error, textAlign: TextAlign.center),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      provider.error,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                  ),
                   SizedBox(height: 16),
                   ElevatedButton.icon(
-                    onPressed: () => provider.loadAccidents(),
+                    onPressed: _refreshData,
                     icon: Icon(Icons.refresh),
                     label: Text('Дахин оролдох'),
                   ),
@@ -144,7 +284,7 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
           }
 
           return RefreshIndicator(
-            onRefresh: () => provider.loadAccidents(),
+            onRefresh: _refreshData,
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: accidents.length,
@@ -392,7 +532,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                         child: OutlinedButton.icon(
                           onPressed: () {
                             Navigator.pop(context);
-                            // Navigate to map
                           },
                           icon: Icon(Icons.map),
                           label: Text('Газрын зураг'),
