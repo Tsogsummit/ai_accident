@@ -1,4 +1,4 @@
-// lib/services/video_service.dart - ЗАСВАРЛАСАН VIDEO UPLOAD SERVICE
+// lib/services/video_service.dart - ЗАСВАРЛАСАН FLUTTER VIDEO SERVICE
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
@@ -12,19 +12,22 @@ class VideoService {
   VideoService() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: ApiConfig.videoServiceUrl,  // ✅ Video service URL ашиглах
-        connectTimeout: ApiConfig.connectTimeout,
-        receiveTimeout: Duration(minutes: 5), // Video upload-д урт хугацаа
+        baseUrl: ApiConfig.videoServiceUrl,
+        connectTimeout: Duration(minutes: 2),
+        receiveTimeout: Duration(minutes: 5),
         sendTimeout: Duration(minutes: 5),
         headers: ApiConfig.defaultHeaders,
+        validateStatus: (status) {
+          return status != null && status < 500;
+        },
       ),
     );
     
-    // Add retry interceptor
+    // Retry interceptor
     _dio.interceptors.add(
       RetryInterceptor(
         dio: _dio,
-        retries: 2, // Video upload-д бага retry
+        retries: 2,
         retryDelays: [
           Duration(seconds: 3),
           Duration(seconds: 5),
@@ -32,7 +35,7 @@ class VideoService {
       ),
     );
     
-    // Add auth token interceptor
+    // Auth token interceptor
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -43,11 +46,9 @@ class VideoService {
           return handler.next(options);
         },
         onError: (error, handler) async {
-          // Handle 401 - try to refresh token
           if (error.response?.statusCode == 401) {
             final refreshed = await _authService.refreshAccessToken();
             if (refreshed) {
-              // Retry request with new token
               final token = await _authService.getAccessToken();
               error.requestOptions.headers['Authorization'] = 'Bearer $token';
               
@@ -64,12 +65,12 @@ class VideoService {
       ),
     );
     
-    // Add logging (development only)
+    // Logging
     if (ApiConfig.enableLogging && ApiConfig.isDevelopment) {
       _dio.interceptors.add(
         LogInterceptor(
           request: true,
-          requestBody: false, // Video болон зураг биш харуулах
+          requestBody: false,
           responseBody: true,
           error: true,
         ),
@@ -78,10 +79,9 @@ class VideoService {
   }
   
   // ==========================================
-  // VIDEO UPLOAD
+  // VIDEO UPLOAD - SIMPLIFIED
   // ==========================================
   
-  /// Upload video with accident report
   Future<Map<String, dynamic>> uploadVideo({
     required File videoFile,
     required double latitude,
@@ -96,19 +96,19 @@ class VideoService {
       final fileSize = await videoFile.length();
       if (!ApiConfig.isValidVideoSize(fileSize)) {
         throw Exception(
-          'Видео хэт том байна. Максимум хэмжээ: ${ApiConfig.maxVideoSizeMB}MB\n'
+          'Видео хэт том байна. Максимум: ${ApiConfig.maxVideoSizeMB}MB\n'
           'Танай файл: ${ApiConfig.formatFileSize(fileSize)}'
         );
       }
       
-      // Validate file extension
+      // Validate extension
       if (!ApiConfig.isValidVideoExtension(videoFile.path)) {
         throw Exception(
-          'Видеоны формат буруу байна. Зөвшөөрөгдсөн форматууд: ${ApiConfig.allowedVideoFormats.join(", ")}'
+          'Видеоны формат буруу. Зөвшөөрөгдсөн: ${ApiConfig.allowedVideoFormats.join(", ")}'
         );
       }
       
-      print('📹 Видео upload эхэллээ: ${ApiConfig.formatFileSize(fileSize)}');
+      print('📹 Video upload эхэллээ: ${ApiConfig.formatFileSize(fileSize)}');
       
       // Get user ID
       final userId = await _authService.getUserId();
@@ -118,9 +118,9 @@ class VideoService {
       
       // Prepare form data
       FormData formData = FormData.fromMap({
-        'userId': userId,
-        'latitude': latitude,
-        'longitude': longitude,
+        'userId': userId.toString(),
+        'latitude': latitude.toString(),
+        'longitude': longitude.toString(),
         'description': description,
         'severity': severity,
         'video': await MultipartFile.fromFile(
@@ -129,41 +129,49 @@ class VideoService {
         ),
       });
       
-      // Add thumbnail if provided
-      if (thumbnailFile != null) {
-        formData.files.add(
-          MapEntry(
-            'thumbnail',
-            await MultipartFile.fromFile(
-              thumbnailFile.path,
-              filename: 'thumb_${DateTime.now().millisecondsSinceEpoch}.jpg',
-            ),
-          ),
-        );
-      }
+      print('📤 Sending to: ${ApiConfig.videoServiceUrl}/upload');
+      print('📦 Form data: userId=$userId, lat=$latitude, lng=$longitude');
       
       // Upload video
       final response = await _dio.post(
-        '/upload',  // ✅ Relative path (baseUrl нь video service)
+        '/upload',
         data: formData,
-        onSendProgress: onProgress,
+        onSendProgress: (sent, total) {
+          final progress = sent / total;
+          print('📊 Upload: ${(progress * 100).toStringAsFixed(1)}% ($sent / $total bytes)');
+          if (onProgress != null) {
+            onProgress(sent, total);
+          }
+        },
       );
       
-      if (response.statusCode == 200 || response.statusCode == 202) {
-        print('✅ Видео амжилттай илгээгдлээ');
-        
-        return {
-          'success': true,
-          'message': response.data['message'] ?? 'Видео амжилттай илгээгдлээ',
-          'videoId': response.data['videoId'],
-          'status': response.data['status'] ?? 'processing',
-          'estimatedTime': response.data['estimatedTime'],
-        };
+      print('📥 Response status: ${response.statusCode}');
+      print('📥 Response data: ${response.data}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.data['success'] == true) {
+          print('✅ Видео амжилттай илгээгдлээ');
+          
+          return {
+            'success': true,
+            'message': response.data['message'] ?? 'Видео амжилттай илгээгдлээ',
+            'videoId': response.data['videoId'],
+            'accidentId': response.data['accidentId'],
+            'status': response.data['status'] ?? 'processed',
+          };
+        } else {
+          throw Exception(response.data['error'] ?? 'Видео илгээхэд алдаа гарлаа');
+        }
       } else {
-        throw Exception(response.data['error'] ?? 'Видео илгээхэд алдаа гарлаа');
+        throw Exception(
+          'Server error: ${response.statusCode}\n'
+          '${response.data['error'] ?? response.data['message'] ?? 'Unknown error'}'
+        );
       }
     } on DioException catch (e) {
-      print('❌ Video upload error: ${e.message}');
+      print('❌ DioException: ${e.type}');
+      print('❌ Message: ${e.message}');
+      print('❌ Response: ${e.response?.data}');
       throw _handleError(e);
     } catch (e) {
       print('❌ Unexpected error: $e');
@@ -172,24 +180,19 @@ class VideoService {
   }
   
   // ==========================================
-  // VIDEO STATUS CHECK
+  // VIDEO STATUS
   // ==========================================
   
-  /// Check video processing status
   Future<Map<String, dynamic>> getVideoStatus(String videoId) async {
     try {
       final response = await _dio.get('/$videoId/status');
       
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && response.data['success'] == true) {
         return {
           'success': true,
           'videoId': response.data['videoId'],
           'status': response.data['status'],
-          'aiStatus': response.data['aiStatus'],
-          'confidence': response.data['confidence'],
-          'detectedObjects': response.data['detectedObjects'],
-          'uploadedAt': response.data['uploadedAt'],
-          'processedAt': response.data['processedAt'],
+          'accidentId': response.data['accidentId'],
         };
       }
       
@@ -200,10 +203,9 @@ class VideoService {
   }
   
   // ==========================================
-  // GET ALL VIDEOS
+  // GET VIDEOS
   // ==========================================
   
-  /// Get list of uploaded videos
   Future<List<Map<String, dynamic>>> getVideos({
     int? limit,
     int? offset,
@@ -220,8 +222,8 @@ class VideoService {
         queryParameters: queryParams,
       );
       
-      if (response.statusCode == 200) {
-        final List<dynamic> data = response.data['data'] ?? response.data;
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> data = response.data['data'] ?? [];
         return data.cast<Map<String, dynamic>>();
       }
       
@@ -233,117 +235,9 @@ class VideoService {
   }
   
   // ==========================================
-  // IMAGE UPLOAD (for accidents without video)
-  // ==========================================
-  
-  /// Upload image with accident report
-  Future<Map<String, dynamic>> uploadImage({
-    required File imageFile,
-    required double latitude,
-    required double longitude,
-    required String description,
-    String severity = 'moderate',
-    Function(int sent, int total)? onProgress,
-  }) async {
-    try {
-      // Validate file size
-      final fileSize = await imageFile.length();
-      if (!ApiConfig.isValidImageSize(fileSize)) {
-        throw Exception(
-          'Зураг хэт том байна. Максимум хэмжээ: ${ApiConfig.maxImageSizeMB}MB\n'
-          'Танай файл: ${ApiConfig.formatFileSize(fileSize)}'
-        );
-      }
-      
-      // Validate file extension
-      if (!ApiConfig.isValidImageExtension(imageFile.path)) {
-        throw Exception(
-          'Зургийн формат буруу байна. Зөвшөөрөгдсөн форматууд: ${ApiConfig.allowedImageFormats.join(", ")}'
-        );
-      }
-      
-      print('📷 Зураг upload эхэллээ: ${ApiConfig.formatFileSize(fileSize)}');
-      
-      // Get user ID
-      final userId = await _authService.getUserId();
-      if (userId == null) {
-        throw Exception('Нэвтрэх шаардлагатай');
-      }
-      
-      // Prepare form data
-      FormData formData = FormData.fromMap({
-        'userId': userId,
-        'latitude': latitude,
-        'longitude': longitude,
-        'description': description,
-        'severity': severity,
-        'image': await MultipartFile.fromFile(
-          imageFile.path,
-          filename: 'accident_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        ),
-      });
-      
-      // ✅ Upload to accidents endpoint (images go directly to accident report)
-      // Use full URL since we're posting to accident service, not video service
-      final accidentDio = Dio(BaseOptions(baseUrl: ApiConfig.accidentServiceUrl));
-      
-      // Add auth interceptor
-      final token = await _authService.getAccessToken();
-      if (token != null) {
-        accidentDio.options.headers['Authorization'] = 'Bearer $token';
-      }
-      
-      final response = await accidentDio.post(
-        '/accidents',
-        data: formData,
-        onSendProgress: onProgress,
-      );
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ Зураг амжилттай илгээгдлээ');
-        
-        return {
-          'success': true,
-          'message': response.data['message'] ?? 'Зураг амжилттай илгээгдлээ',
-          'accidentId': response.data['data']?['id'],
-          'accident': response.data['data'],
-        };
-      } else {
-        throw Exception(response.data['error'] ?? 'Зураг илгээхэд алдаа гарлаа');
-      }
-    } on DioException catch (e) {
-      print('❌ Image upload error: ${e.message}');
-      throw _handleError(e);
-    } catch (e) {
-      print('❌ Unexpected error: $e');
-      throw Exception('Зураг илгээхэд алдаа гарлаа: $e');
-    }
-  }
-  
-  // ==========================================
-  // DOWNLOAD VIDEO
-  // ==========================================
-  
-  /// Get download URL for video
-  Future<String> getDownloadUrl(String videoId) async {
-    try {
-      final response = await _dio.get('/$videoId/download');
-      
-      if (response.statusCode == 200 && response.data['downloadUrl'] != null) {
-        return response.data['downloadUrl'];
-      }
-      
-      throw Exception('Download URL авахад алдаа гарлаа');
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-  
-  // ==========================================
   // DELETE VIDEO
   // ==========================================
   
-  /// Delete uploaded video
   Future<bool> deleteVideo(String videoId) async {
     try {
       final userId = await _authService.getUserId();
@@ -365,6 +259,11 @@ class VideoService {
   // ==========================================
   
   String _handleError(DioException e) {
+    print('🔍 Error details:');
+    print('   Type: ${e.type}');
+    print('   Message: ${e.message}');
+    print('   Response: ${e.response?.data}');
+    
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
@@ -375,7 +274,15 @@ class VideoService {
         
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
-        final message = e.response?.data?['error'] ?? e.response?.data?['message'];
+        final data = e.response?.data;
+        
+        String message = 'Серверийн алдаа';
+        
+        if (data is Map) {
+          message = data['error']?.toString() ?? 
+                   data['message']?.toString() ?? 
+                   'Тодорхойгүй алдаа';
+        }
         
         if (statusCode == 401) {
           return 'Нэвтрэх эрх дууссан. Дахин нэвтэрнэ үү.';
@@ -383,22 +290,20 @@ class VideoService {
           return 'Файл хэт том байна. Багасгаад дахин оролдоно уу.';
         } else if (statusCode == 415) {
           return 'Файлын формат буруу байна.';
-        } else if (message != null) {
-          return message.toString();
         }
-        return 'Серверээс алдаа буцаж ирлээ.';
+        
+        return '$message (Код: $statusCode)';
         
       case DioExceptionType.connectionError:
         return 'Интернет холболт тасарсан. WiFi эсвэл мобайл датаа шалгана уу.';
         
+      case DioExceptionType.cancel:
+        return 'Upload цуцлагдсан';
+        
       default:
-        return 'Файл илгээхэд алдаа гарлаа. Дахин оролдоно уу.';
+        return 'Файл илгээхэд алдаа гарлаа: ${e.message ?? "Unknown error"}';
     }
   }
-  
-  // ==========================================
-  // HELPERS
-  // ==========================================
   
   void dispose() {
     _dio.close();
