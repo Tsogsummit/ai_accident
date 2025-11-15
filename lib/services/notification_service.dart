@@ -17,6 +17,10 @@ class NotificationService {
         receiveTimeout: ApiConfig.receiveTimeout,
         sendTimeout: ApiConfig.sendTimeout,
         headers: ApiConfig.defaultHeaders,
+        validateStatus: (status) {
+          // Accept all status codes to handle errors properly
+          return status != null && status < 500;
+        },
       ),
     );
 
