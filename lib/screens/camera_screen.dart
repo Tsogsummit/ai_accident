@@ -1,4 +1,4 @@
-// lib/screens/camera_screen.dart - ЗАСВАРЛАСАН ХУВИЛБАР
+// lib/screens/camera_screen.dart - БҮРЭН ЗАСВАРЛАСАН ХУВИЛБАР
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -16,7 +16,8 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraScreenState extends State<CameraScreen>
+    with WidgetsBindingObserver { // ✅ ШИНЭ - lifecycle observer
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
   bool _isInitialized = false;
@@ -32,11 +33,70 @@ class _CameraScreenState extends State<CameraScreen> {
   // Location
   Position? _currentPosition;
 
+  // ✅ ШИНЭ - screen visibility tracking
+  bool _isScreenActive = true;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // ✅ ШИНЭ
     _initializeCameraWithTimeout();
     _getCurrentLocation();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // ✅ ШИНЭ
+    _cleanupResources(); // ✅ ШИНЭ - centralized cleanup
+    super.dispose();
+  }
+
+  // ✅✅✅ ШИНЭ - App lifecycle handling
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = _cameraController;
+
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      // App going to background
+      _isScreenActive = false;
+      if (_isRecording) {
+        print('⚠️ App inactive - stopping recording');
+        _stopRecording();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      // App came back to foreground
+      _isScreenActive = true;
+    }
+  }
+
+  // ✅ ШИНЭ - Centralized cleanup
+  void _cleanupResources() {
+    print('🧹 Cleaning up camera resources...');
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    
+    if (_cameraController != null) {
+      if (_isRecording) {
+        try {
+          _cameraController!.stopVideoRecording();
+        } catch (e) {
+          print('⚠️ Error stopping recording during cleanup: $e');
+        }
+      }
+      _cameraController?.dispose();
+      _cameraController = null;
+    }
+    
+    // Delete temp video file if exists
+    if (_videoPath != null) {
+      _deleteVideo();
+    }
+    
+    print('✅ Cleanup complete');
   }
 
   Future<void> _getCurrentLocation() async {
@@ -61,7 +121,7 @@ class _CameraScreenState extends State<CameraScreen> {
       _currentPosition = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.medium,
       );
-      
+
       print('✅ Байршил авагдлаа: ${_currentPosition?.latitude}, ${_currentPosition?.longitude}');
     } catch (e) {
       print('❌ Байршил авахад алдаа: $e');
@@ -119,6 +179,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Future<void> _toggleRecording() async {
     if (!_isInitialized || _cameraController == null) return;
+    if (!_isScreenActive) return; // ✅ ШИНЭ - prevent recording if not active
 
     if (_isRecording) {
       await _stopRecording();
@@ -128,6 +189,8 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _startRecording() async {
+    if (!_isScreenActive) return; // ✅ ШИНЭ
+
     try {
       await _cameraController!.startVideoRecording();
       setState(() {
@@ -136,105 +199,129 @@ class _CameraScreenState extends State<CameraScreen> {
       });
 
       _recordingTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-        if (mounted) setState(() => _recordingSeconds++);
+        if (mounted && _isRecording) {
+          setState(() => _recordingSeconds++);
+        } else {
+          timer.cancel();
+        }
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('🔴 Бичлэг эхэллээ'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 1),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🔴 Бичлэг эхэллээ'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Бичлэг эхлэхэд алдаа: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('❌ Start recording error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Бичлэг эхлэхэд алдаа: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _stopRecording() async {
+    if (!_isRecording || _cameraController == null) return;
+
     try {
       _recordingTimer?.cancel();
-      final video = await _cameraController!.stopVideoRecording();
-      setState(() {
-        _isRecording = false;
-        _videoPath = video.path;
-      });
+      _recordingTimer = null;
 
-      print('✅ Бичлэг хадгалагдлаа: $_videoPath');
-      _showVideoPreview();
+      final video = await _cameraController!.stopVideoRecording();
+      
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+          _videoPath = video.path;
+        });
+
+        print('✅ Бичлэг хадгалагдлаа: $_videoPath');
+        _showVideoPreview();
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Бичлэг зогсоохд алдаа: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('❌ Stop recording error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Бичлэг зогсоохд алдаа: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   void _showVideoPreview() {
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.videocam, size: 48, color: Colors.blue),
-            SizedBox(height: 16),
-            Text(
-              'Бичлэг бэлэн',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text('Хугацаа: ${_formatDuration(_recordingSeconds)}'),
-            SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      _deleteVideo();
-                      Navigator.pop(context);
-                    },
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    label: Text('Устгах', style: TextStyle(color: Colors.red)),
-                    style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: Colors.red),
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false, // ✅ ШИНЭ - prevent back button
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.videocam, size: 48, color: Colors.blue),
+              SizedBox(height: 16),
+              Text(
+                'Бичлэг бэлэн',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('Хугацаа: ${_formatDuration(_recordingSeconds)}'),
+              SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        _deleteVideo();
+                        Navigator.pop(context);
+                      },
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      label: Text('Устгах', style: TextStyle(color: Colors.red)),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: Colors.red),
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _uploadVideo();
-                    },
-                    icon: Icon(Icons.upload),
-                    label: Text('Илгээх'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.green,
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _uploadVideo();
+                      },
+                      icon: Icon(Icons.upload),
+                      label: Text('Илгээх'),
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: Colors.green,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -245,33 +332,40 @@ class _CameraScreenState extends State<CameraScreen> {
       try {
         File(_videoPath!).deleteSync();
         setState(() => _videoPath = null);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Бичлэг устгагдлаа'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Бичлэг устгагдлаа'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       } catch (e) {
         print('❌ Файл устгахад алдаа: $e');
       }
     }
   }
 
-  // ✅ ЗАСВАРЛАСАН: AccidentProvider ашиглан video upload хийх
+  // ✅✅✅ ЗАСВАРЛАСАН: VideoService ашиглан upload хийх
   Future<void> _uploadVideo() async {
-    if (_videoPath == null) return;
+    if (_videoPath == null) {
+      print('❌ Video path null байна');
+      return;
+    }
 
     // Байршил шалгах
     if (_currentPosition == null) {
       await _getCurrentLocation();
       if (_currentPosition == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('⚠️ Байршил тодорхойгүй байна. Дахин оролдож байна...'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        // Default байршил ашиглана (Улаанбаатар)
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ Байршил тодорхойгүй байна. Default байршил ашиглана...'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        // Default байршил (Улаанбаатар)
         _currentPosition = Position(
           latitude: 47.9184,
           longitude: 106.9177,
@@ -288,41 +382,56 @@ class _CameraScreenState extends State<CameraScreen> {
     }
 
     // Loading dialog харуулах
+    if (!mounted) return;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Consumer<AccidentProvider>(
-        builder: (context, provider, child) {
-          return AlertDialog(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(
-                  value: provider.isUploading ? provider.uploadProgress : null,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  provider.isUploading
-                      ? 'Илгээж байна... ${(provider.uploadProgress * 100).toStringAsFixed(0)}%'
-                      : 'Бэлтгэж байна...',
-                ),
-              ],
-            ),
-          );
-        },
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false, // ✅ Prevent dismissal
+        child: Consumer<AccidentProvider>(
+          builder: (context, provider, child) {
+            return AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    value: provider.isUploading ? provider.uploadProgress : null,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    provider.isUploading
+                        ? 'Илгээж байна... ${(provider.uploadProgress * 100).toStringAsFixed(0)}%'
+                        : 'Бэлтгэж байна...',
+                  ),
+                  if (provider.isUploading) ...[
+                    SizedBox(height: 8),
+                    Text(
+                      '${(provider.uploadProgress * 100).toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
 
     try {
       final provider = Provider.of<AccidentProvider>(context, listen: false);
 
-      // ✅ AccidentProvider-ийн reportAccident ашиглан video илгээх
-      final accident = await provider.reportAccident(
+      // ✅✅✅ VideoService ашиглах - ШИНЭ FUNCTION
+      final result = await provider.uploadVideoAccident(
+        videoFile: File(_videoPath!),
         latitude: _currentPosition!.latitude,
         longitude: _currentPosition!.longitude,
         description: 'Камераас бичигдсэн осол (${_formatDuration(_recordingSeconds)})',
         severity: AccidentSeverity.moderate,
-        videoFile: File(_videoPath!),
       );
 
       _deleteVideo(); // Амжилттай илгээсний дараа устгах
@@ -330,7 +439,7 @@ class _CameraScreenState extends State<CameraScreen> {
       if (!mounted) return;
       Navigator.pop(context); // Loading dialog хаах
 
-      if (accident != null) {
+      if (result != null && result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -338,18 +447,30 @@ class _CameraScreenState extends State<CameraScreen> {
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 12),
                 Expanded(
-                  child: Text('✅ Ослын мэдээлэл амжилттай илгээгдлээ'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('✅ Видео амжилттай илгээгдлээ'),
+                      Text(
+                        'AI боловсруулж байна...',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            duration: Duration(seconds: 4),
           ),
         );
       } else {
-        throw Exception('Ослын мэдээлэл үүсгэж чадсангүй');
+        throw Exception('Видео илгээлт амжилтгүй');
       }
     } catch (e) {
+      print('❌ Video upload error: $e');
+      
       if (!mounted) return;
       Navigator.pop(context); // Loading dialog хаах
 
@@ -366,6 +487,11 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Дахин',
+            textColor: Colors.white,
+            onPressed: _uploadVideo,
+          ),
         ),
       );
     }
@@ -378,21 +504,43 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   @override
-  void dispose() {
-    _recordingTimer?.cancel();
-    _cameraController?.dispose();
-    if (_videoPath != null) _deleteVideo();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('AI Осол Илрүүлэлт'),
-        backgroundColor: Colors.blue,
+    return WillPopScope(
+      onWillPop: () async {
+        // ✅ ШИНЭ - Handle back button
+        if (_isRecording) {
+          final shouldPop = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text('Бичлэг зогсоох уу?'),
+              content: Text('Бичлэг хийгдэж байна. Буцах бол бичлэг зогсоно.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text('Үгүй'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    _stopRecording();
+                    Navigator.pop(context, true);
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: Text('Зогсоох'),
+                ),
+              ],
+            ),
+          );
+          return shouldPop ?? false;
+        }
+        return true;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('AI Осол Илрүүлэлт'),
+          backgroundColor: Colors.blue,
+        ),
+        body: _buildBody(),
       ),
-      body: _buildBody(),
     );
   }
 

@@ -1,7 +1,9 @@
-// lib/providers/accident_provider.dart - ЗАСВАРЛАСАН (Mock data устгасан)
+// lib/providers/accident_provider.dart - VIDEO UPLOAD НЭМСЭН ХУВИЛБАР
 import 'package:flutter/material.dart';
+import 'dart:io';
 import '../models/accident.dart';
 import '../services/accident_service.dart';
+import '../services/video_service.dart'; // ✅ ШИНЭ
 
 class AccidentProvider extends ChangeNotifier {
   List<Accident> _accidents = [];
@@ -10,7 +12,6 @@ class AccidentProvider extends ChangeNotifier {
   // Loading states
   bool _isLoading = false;
   bool _isRefreshing = false;
-  final bool _isLoadingMore = false;
 
   // Error handling
   String _error = '';
@@ -40,7 +41,6 @@ class AccidentProvider extends ChangeNotifier {
   List<Accident> get allAccidents => _accidents;
   bool get isLoading => _isLoading;
   bool get isRefreshing => _isRefreshing;
-  bool get isLoadingMore => _isLoadingMore;
   bool get isUploading => _isUploading;
   double get uploadProgress => _uploadProgress;
   String get error => _error;
@@ -50,6 +50,7 @@ class AccidentProvider extends ChangeNotifier {
   Set<AccidentStatus> get statusFilters => _statusFilters;
 
   final AccidentService _accidentService = AccidentService();
+  final VideoService _videoService = VideoService(); // ✅ ШИНЭ
 
   // Statistics
   int get totalAccidents => _accidents.length;
@@ -71,7 +72,7 @@ class AccidentProvider extends ChangeNotifier {
   int get resolvedAccidents =>
       _accidents.where((a) => a.status == AccidentStatus.resolved).length;
 
-  // ✅ Load accidents from API - NO MOCK DATA
+  // ✅ Load accidents from API
   Future<void> loadAccidents({bool forceRefresh = false}) async {
     if (_isLoading || _isRefreshing) return;
 
@@ -94,9 +95,6 @@ class AccidentProvider extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
       print('❌ Ослын мэдээлэл ачаалахад алдаа: $_error');
-      
-      // ⚠️ АНХААР: Mock data ашиглахгүй! 
-      // Хэрвээ API ажиллахгүй бол хоосон array буцаана
       _accidents = [];
       _applyFilters();
     } finally {
@@ -105,7 +103,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Refresh accidents (pull-to-refresh)
+  // ✅ Refresh accidents
   Future<void> refreshAccidents() async {
     if (_isRefreshing) return;
 
@@ -168,14 +166,14 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Report new accident with progress tracking
+  // ✅ Report accident with IMAGE (шинэ/хуучин хувилбар)
   Future<Accident?> reportAccident({
     required double latitude,
     required double longitude,
     required String description,
     AccidentSeverity? severity,
-    var imageFile,
-    var videoFile,
+    File? imageFile,
+    File? videoFile, // Хэрэв video байвал энийг БИТГИЙ АШИГЛА!
   }) async {
     try {
       _isUploading = true;
@@ -200,7 +198,7 @@ class AccidentProvider extends ChangeNotifier {
 
       print('✅ Осол амжилттай мэдээлэгдлээ');
 
-      _accidents.insert(0, accident); // Add to beginning
+      _accidents.insert(0, accident);
       _applyFilters();
       _lastFetchTime = DateTime.now();
 
@@ -216,6 +214,72 @@ class AccidentProvider extends ChangeNotifier {
       _uploadProgress = 0.0;
       notifyListeners();
       return null;
+    }
+  }
+
+  // ✅✅✅ ШИНЭ: VIDEO UPLOAD - VideoService ашиглах
+  Future<Map<String, dynamic>?> uploadVideoAccident({
+    required File videoFile,
+    required double latitude,
+    required double longitude,
+    required String description,
+    AccidentSeverity severity = AccidentSeverity.moderate,
+    Function(int sent, int total)? onProgress,
+  }) async {
+    try {
+      _isUploading = true;
+      _uploadProgress = 0.0;
+      _error = '';
+      notifyListeners();
+
+      print('📹 Видео upload эхэллээ...');
+
+      // VideoService дуудах
+      final result = await _videoService.uploadVideo(
+        videoFile: videoFile,
+        latitude: latitude,
+        longitude: longitude,
+        description: description,
+        severity: _severityToString(severity),
+        onProgress: (sent, total) {
+          _uploadProgress = sent / total;
+          if (onProgress != null) {
+            onProgress(sent, total);
+          }
+          notifyListeners();
+        },
+      );
+
+      print('✅ Видео амжилттай илгээгдлээ: ${result['videoId']}');
+
+      // Accidents-ийг дахин ачаалах (AI боловсруулалтын дараа)
+      await Future.delayed(Duration(seconds: 2));
+      await loadAccidents(forceRefresh: true);
+
+      _isUploading = false;
+      _uploadProgress = 0.0;
+      notifyListeners();
+
+      return result;
+    } catch (e) {
+      _error = e.toString();
+      print('❌ Видео илгээхэд алдаа: $_error');
+      _isUploading = false;
+      _uploadProgress = 0.0;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // Helper: Severity to string
+  String _severityToString(AccidentSeverity severity) {
+    switch (severity) {
+      case AccidentSeverity.severe:
+        return 'severe';
+      case AccidentSeverity.moderate:
+        return 'moderate';
+      case AccidentSeverity.minor:
+        return 'minor';
     }
   }
 
@@ -258,7 +322,6 @@ class AccidentProvider extends ChangeNotifier {
 
       final success = await _accidentService.verifyAccident(accidentId);
       if (success) {
-        // Update local accident
         final index = _accidents.indexWhere((a) => a.id == accidentId);
         if (index != -1) {
           _accidents[index] = _accidents[index].copyWith(
@@ -393,7 +456,6 @@ class AccidentProvider extends ChangeNotifier {
       return sourceMatch && severityMatch && statusMatch;
     }).toList();
 
-    // Sort by timestamp (newest first)
     _filteredAccidents.sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
 
@@ -402,7 +464,6 @@ class AccidentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ Clear cache
   void clearCache() {
     _accidentService.clearCache();
   }
@@ -410,6 +471,7 @@ class AccidentProvider extends ChangeNotifier {
   @override
   void dispose() {
     _accidentService.dispose();
+    _videoService.dispose(); // ✅ ШИНЭ
     super.dispose();
   }
 }
