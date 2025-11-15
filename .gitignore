@@ -158,7 +158,6 @@ lib/firebase_options.dart
 **/secrets/
 **/credentials/
 **/*_secrets.dart
-**/*_config.dart
 **/*_keys.dart
 
 # ==========================================
@@ -178,7 +177,6 @@ ui-debug.log
 *.g.dart
 *.freezed.dart
 *.gr.dart
-*.config.dart
 *.gen.dart
 *.mocks.dart
 *.part.dart
