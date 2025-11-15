@@ -24,6 +24,16 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
+          
+          // ✅ CardTheme нэмсэн - бүх Card widget-д автоматаар хэрэглэгдэнэ
+          cardTheme: CardThemeData(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            clipBehavior: Clip.antiAlias, // Зургийг card-ын дотор зөв харуулах
+          ),
         ),
         home: const AuthCheck(),
       ),

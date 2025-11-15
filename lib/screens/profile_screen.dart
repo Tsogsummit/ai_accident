@@ -1,9 +1,11 @@
-// lib/screens/profile_screen.dart - FIXED VERSION
+// lib/screens/profile_screen.dart - API TEST ТОВЧТОЙ
 // 🇲🇳 ПРОФАЙЛ ХЭСЭГ - Монгол хэлтэй
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';
+import '../config/api_config.dart';
+import 'api_test_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -16,6 +18,17 @@ class ProfileScreen extends StatelessWidget {
         backgroundColor: Colors.blue,
         automaticallyImplyLeading: false,
         actions: [
+          // 🧪 API Test button
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ApiTestScreen()),
+              );
+            },
+            tooltip: 'API Тестлэх',
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -54,6 +67,60 @@ class ProfileScreen extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 30),
+
+                // ✅ API Connection Status Card
+                Card(
+                  margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  elevation: 2,
+                  color: Colors.blue.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.cloud, color: Colors.blue, size: 24),
+                            SizedBox(width: 12),
+                            Text(
+                              'API Холболт',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Divider(height: 16),
+                        _buildApiInfoRow('Горим', ApiConfig.connectionMode),
+                        _buildApiInfoRow('IP хаяг', ApiConfig.localIP),
+                        _buildApiInfoRow('Auth', '${ApiConfig.authServiceUrl}'),
+                        _buildApiInfoRow('Accident', '${ApiConfig.accidentServiceUrl}'),
+                        SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => ApiTestScreen()),
+                              );
+                            },
+                            icon: Icon(Icons.bug_report),
+                            label: Text('API Тестлэх'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
                 // Statistics Card
                 Card(
@@ -185,6 +252,32 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildApiInfoRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 70,
+            child: Text(
+              '$label:',
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatRow(String label, String value, IconData icon, Color color) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -232,7 +325,18 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Тохиргоо'),
-        content: Text('Тохиргооны цонх удахгүй нэмэгдэнэ'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Тохиргооны цонх удахгүй нэмэгдэнэ'),
+            SizedBox(height: 16),
+            Text('API Тохиргоо:', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text('IP: ${ApiConfig.localIP}', style: TextStyle(fontSize: 12)),
+            Text('Горим: ${ApiConfig.connectionMode}', style: TextStyle(fontSize: 12)),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -258,6 +362,12 @@ class ProfileScreen extends StatelessWidget {
             Text('Үүсгэсэн: 2025'),
             SizedBox(height: 16),
             Text('Хиймэл оюун ухаан ашиглан замын осол илрүүлэх, мэдээлэх систем.'),
+            SizedBox(height: 16),
+            Divider(),
+            Text('API Холболт:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            SizedBox(height: 4),
+            Text('IP: ${ApiConfig.localIP}', style: TextStyle(fontSize: 11)),
+            Text('Горим: ${ApiConfig.connectionMode}', style: TextStyle(fontSize: 11)),
           ],
         ),
         actions: [

@@ -388,7 +388,7 @@ class AccidentService {
       });
 
       final response = await _dio.post(
-        '${ApiConfig.aiEndpoint}/analyze',
+        '${ApiConfig.aiAnalyzeEndpoint}',
         data: formData,
         onSendProgress: onProgress,
       );

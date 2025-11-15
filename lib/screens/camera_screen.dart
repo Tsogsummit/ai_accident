@@ -1,8 +1,9 @@
-// lib/screens/camera_screen.dart - ВИДЕО БИЧЛЭГТЭЙ
+// lib/screens/camera_screen.dart - ЗАСВАРЛАСАН ХУВИЛБАР
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:io';
 import '../providers/accident_provider.dart';
@@ -28,10 +29,43 @@ class _CameraScreenState extends State<CameraScreen> {
   Timer? _recordingTimer;
   int _recordingSeconds = 0;
 
+  // Location
+  Position? _currentPosition;
+
   @override
   void initState() {
     super.initState();
     _initializeCameraWithTimeout();
+    _getCurrentLocation();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        print('⚠️ Байршлын үйлчилгээ идэвхгүй байна');
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        print('⚠️ Байршлын зөвшөөрөл олгогдоогүй');
+        return;
+      }
+
+      _currentPosition = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      );
+      
+      print('✅ Байршил авагдлаа: ${_currentPosition?.latitude}, ${_currentPosition?.longitude}');
+    } catch (e) {
+      print('❌ Байршил авахад алдаа: $e');
+    }
   }
 
   Future<void> _initializeCameraWithTimeout() async {
@@ -53,11 +87,12 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _initializeCamera() async {
     final permission = await Permission.camera.request();
     if (permission != PermissionStatus.granted) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _permissionDenied = true;
           _error = 'Камерын зөвшөөрөл олгогдоогүй';
         });
+      }
       return;
     }
 
@@ -74,11 +109,12 @@ class _CameraScreenState extends State<CameraScreen> {
     );
 
     await _cameraController!.initialize();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _isInitialized = true;
         _error = null;
       });
+    }
   }
 
   Future<void> _toggleRecording() async {
@@ -104,7 +140,11 @@ class _CameraScreenState extends State<CameraScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Бичлэг эхэллээ'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('🔴 Бичлэг эхэллээ'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 1),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -125,6 +165,7 @@ class _CameraScreenState extends State<CameraScreen> {
         _videoPath = video.path;
       });
 
+      print('✅ Бичлэг хадгалагдлаа: $_videoPath');
       _showVideoPreview();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -151,6 +192,8 @@ class _CameraScreenState extends State<CameraScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(Icons.videocam, size: 48, color: Colors.blue),
+            SizedBox(height: 16),
             Text(
               'Бичлэг бэлэн',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -209,61 +252,120 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
         );
       } catch (e) {
-        print('Delete error: $e');
+        print('❌ Файл устгахад алдаа: $e');
       }
     }
   }
 
+  // ✅ ЗАСВАРЛАСАН: AccidentProvider ашиглан video upload хийх
   Future<void> _uploadVideo() async {
     if (_videoPath == null) return;
 
+    // Байршил шалгах
+    if (_currentPosition == null) {
+      await _getCurrentLocation();
+      if (_currentPosition == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Байршил тодорхойгүй байна. Дахин оролдож байна...'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        // Default байршил ашиглана (Улаанбаатар)
+        _currentPosition = Position(
+          latitude: 47.9184,
+          longitude: 106.9177,
+          timestamp: DateTime.now(),
+          accuracy: 0,
+          altitude: 0,
+          heading: 0,
+          speed: 0,
+          speedAccuracy: 0,
+          altitudeAccuracy: 0,
+          headingAccuracy: 0,
+        );
+      }
+    }
+
+    // Loading dialog харуулах
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Бичлэг илгээж байна...'),
-          ],
-        ),
+      builder: (context) => Consumer<AccidentProvider>(
+        builder: (context, provider, child) {
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  value: provider.isUploading ? provider.uploadProgress : null,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  provider.isUploading
+                      ? 'Илгээж байна... ${(provider.uploadProgress * 100).toStringAsFixed(0)}%'
+                      : 'Бэлтгэж байна...',
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
 
     try {
       final provider = Provider.of<AccidentProvider>(context, listen: false);
 
-      // Get current location (you need to implement this)
-      // For now using dummy coordinates
+      // ✅ AccidentProvider-ийн reportAccident ашиглан video илгээх
       final accident = await provider.reportAccident(
-        latitude: 47.9184,
-        longitude: 106.9177,
-        description: 'Камераас бичигдсэн осол',
+        latitude: _currentPosition!.latitude,
+        longitude: _currentPosition!.longitude,
+        description: 'Камераас бичигдсэн осол (${_formatDuration(_recordingSeconds)})',
         severity: AccidentSeverity.moderate,
         videoFile: File(_videoPath!),
       );
 
-      _deleteVideo(); // Delete after successful upload
+      _deleteVideo(); // Амжилттай илгээсний дараа устгах
 
       if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context); // Loading dialog хаах
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ослын мэдээлэл амжилттай илгээгдлээ'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (accident != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text('✅ Ослын мэдээлэл амжилттай илгээгдлээ'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        throw Exception('Ослын мэдээлэл үүсгэж чадсангүй');
+      }
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context); // Loading dialog хаах
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Илгээхэд алдаа: $e'),
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('❌ Илгээхэд алдаа: $e'),
+              ),
+            ],
+          ),
           backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
         ),
       );
     }
@@ -308,11 +410,20 @@ class _CameraScreenState extends State<CameraScreen> {
                 'Камерын зөвшөөрөл хэрэгтэй',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
+              SizedBox(height: 12),
+              Text(
+                'Осол бичлэг хийхийн тулд камерын зөвшөөрөл өгнө үү',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600]),
+              ),
               SizedBox(height: 32),
               ElevatedButton.icon(
                 onPressed: () => openAppSettings(),
                 icon: Icon(Icons.settings),
                 label: Text('Тохиргоо нээх'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                ),
               ),
             ],
           ),
@@ -362,6 +473,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
     return Stack(
       children: [
+        // Camera Preview
         Positioned.fill(child: CameraPreview(_cameraController!)),
 
         // Recording indicator
@@ -395,25 +507,6 @@ class _CameraScreenState extends State<CameraScreen> {
                     ),
                   ],
                 ),
-              ),
-            ),
-          ),
-
-        // Close button (X)
-        if (_videoPath != null)
-          Positioned(
-            top: 16,
-            right: 16,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: Icon(Icons.close, color: Colors.white),
-                onPressed: () {
-                  _deleteVideo();
-                },
               ),
             ),
           ),

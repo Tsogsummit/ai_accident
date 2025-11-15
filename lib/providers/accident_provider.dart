@@ -1,4 +1,4 @@
-// lib/providers/accident_provider.dart - IMPROVED VERSION
+// lib/providers/accident_provider.dart - ЗАСВАРЛАСАН (Mock data устгасан)
 import 'package:flutter/material.dart';
 import '../models/accident.dart';
 import '../services/accident_service.dart';
@@ -71,7 +71,7 @@ class AccidentProvider extends ChangeNotifier {
   int get resolvedAccidents =>
       _accidents.where((a) => a.status == AccidentStatus.resolved).length;
 
-  // ✅ Load accidents from API with improved error handling
+  // ✅ Load accidents from API - NO MOCK DATA
   Future<void> loadAccidents({bool forceRefresh = false}) async {
     if (_isLoading || _isRefreshing) return;
 
@@ -80,21 +80,25 @@ class AccidentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      print('📡 Ослын мэдээлэл татаж байна...');
+      
       _accidents = await _accidentService.getAllAccidents(
         forceRefresh: forceRefresh,
       );
+      
+      print('✅ ${_accidents.length} осол ачаалагдлаа');
+      
       _applyFilters();
       _lastFetchTime = DateTime.now();
       _error = '';
     } catch (e) {
       _error = e.toString();
       print('❌ Ослын мэдээлэл ачаалахад алдаа: $_error');
-
-      // If no cached data, load mock data for development
-      if (_accidents.isEmpty) {
-        _accidents = await _getMockAccidents();
-        _applyFilters();
-      }
+      
+      // ⚠️ АНХААР: Mock data ашиглахгүй! 
+      // Хэрвээ API ажиллахгүй бол хоосон array буцаана
+      _accidents = [];
+      _applyFilters();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -110,9 +114,14 @@ class AccidentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      print('🔄 Мэдээлэл шинэчилж байна...');
+      
       _accidents = await _accidentService.getAllAccidents(
         forceRefresh: true,
       );
+      
+      print('✅ ${_accidents.length} осол шинэчлэгдлээ');
+      
       _applyFilters();
       _lastFetchTime = DateTime.now();
       _error = '';
@@ -136,16 +145,23 @@ class AccidentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      print('📍 Ойролцоох ослын мэдээлэл татаж байна...');
+      
       _accidents = await _accidentService.getNearbyAccidents(
         latitude,
         longitude,
         radiusKm: radiusKm,
       );
+      
+      print('✅ ${_accidents.length} осол олдлоо');
+      
       _applyFilters();
       _lastFetchTime = DateTime.now();
     } catch (e) {
       _error = e.toString();
       print('❌ Ойр дахь ослын мэдээлэл ачаалахад алдаа: $_error');
+      _accidents = [];
+      _applyFilters();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -167,6 +183,8 @@ class AccidentProvider extends ChangeNotifier {
       _error = '';
       notifyListeners();
 
+      print('📤 Осол мэдээлж байна...');
+
       final accident = await _accidentService.reportAccident(
         latitude: latitude,
         longitude: longitude,
@@ -180,6 +198,8 @@ class AccidentProvider extends ChangeNotifier {
         },
       );
 
+      print('✅ Осол амжилттай мэдээлэгдлээ');
+
       _accidents.insert(0, accident); // Add to beginning
       _applyFilters();
       _lastFetchTime = DateTime.now();
@@ -191,6 +211,7 @@ class AccidentProvider extends ChangeNotifier {
       return accident;
     } catch (e) {
       _error = e.toString();
+      print('❌ Осол мэдээлэхэд алдаа: $_error');
       _isUploading = false;
       _uploadProgress = 0.0;
       notifyListeners();
@@ -384,81 +405,6 @@ class AccidentProvider extends ChangeNotifier {
   // ✅ Clear cache
   void clearCache() {
     _accidentService.clearCache();
-  }
-
-  // Mock data for testing (when API unavailable)
-  Future<List<Accident>> _getMockAccidents() async {
-    await Future.delayed(Duration(seconds: 1));
-
-    return [
-      Accident(
-        id: '1',
-        latitude: 47.9184,
-        longitude: 106.9177,
-        description: 'Хөнгөн машин мөргөлдөөн, замын голд',
-        imageUrl: '',
-        timestamp: DateTime.now().subtract(Duration(hours: 1)),
-        severity: AccidentSeverity.minor,
-        status: AccidentStatus.reported,
-        source: AccidentSource.user,
-        reportedBy: 'Батбаяр',
-        verificationCount: 3,
-      ),
-      Accident(
-        id: '2',
-        latitude: 47.9200,
-        longitude: 106.9190,
-        description: 'Ачааны машин эвдэрсэн, зам хааж байна',
-        imageUrl: '',
-        timestamp: DateTime.now().subtract(Duration(hours: 2)),
-        severity: AccidentSeverity.moderate,
-        status: AccidentStatus.confirmed,
-        source: AccidentSource.camera,
-        reportedBy: 'AI Камер #12',
-        cameraId: 12,
-        verificationCount: 8,
-      ),
-      Accident(
-        id: '3',
-        latitude: 47.9150,
-        longitude: 106.9160,
-        description: 'Ноцтой осол, түргэн тусламж хэрэгтэй',
-        imageUrl: '',
-        timestamp: DateTime.now().subtract(Duration(hours: 3)),
-        severity: AccidentSeverity.severe,
-        status: AccidentStatus.confirmed,
-        source: AccidentSource.user,
-        reportedBy: 'Өнөрбаяр',
-        verificationCount: 15,
-      ),
-      Accident(
-        id: '4',
-        latitude: 47.9220,
-        longitude: 106.9210,
-        description: 'Мотоцикль унасан, замын хажууд',
-        imageUrl: '',
-        timestamp: DateTime.now().subtract(Duration(hours: 5)),
-        severity: AccidentSeverity.moderate,
-        status: AccidentStatus.reported,
-        source: AccidentSource.camera,
-        reportedBy: 'AI Камер #5',
-        cameraId: 5,
-        verificationCount: 2,
-      ),
-      Accident(
-        id: '5',
-        latitude: 47.9100,
-        longitude: 106.9100,
-        description: 'Машин гудамж орсон',
-        imageUrl: '',
-        timestamp: DateTime.now().subtract(Duration(hours: 8)),
-        severity: AccidentSeverity.minor,
-        status: AccidentStatus.resolved,
-        source: AccidentSource.user,
-        reportedBy: 'Дорж',
-        verificationCount: 5,
-      ),
-    ];
   }
 
   @override
