@@ -15,13 +15,15 @@ class AccidentService {
   DateTime? _cacheTimestamp;
 
   AccidentService() {
-    _dio = Dio(BaseOptions(
-      baseUrl: ApiConfig.baseUrl,
-      connectTimeout: ApiConfig.connectTimeout,
-      receiveTimeout: ApiConfig.receiveTimeout,
-      sendTimeout: ApiConfig.sendTimeout,
-      headers: ApiConfig.defaultHeaders,
-    ));
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: ApiConfig.baseUrl,
+        connectTimeout: ApiConfig.connectTimeout,
+        receiveTimeout: ApiConfig.receiveTimeout,
+        sendTimeout: ApiConfig.sendTimeout,
+        headers: ApiConfig.defaultHeaders,
+      ),
+    );
 
     // ✅ Add retry interceptor
     _dio.interceptors.add(
@@ -120,7 +122,9 @@ class AccidentService {
       Map<String, dynamic> queryParams = {};
 
       if (source != null) {
-        queryParams['source'] = source == AccidentSource.user ? 'user' : 'camera';
+        queryParams['source'] = source == AccidentSource.user
+            ? 'user'
+            : 'camera';
       }
       if (severity != null) {
         queryParams['severity'] = _severityToString(severity);
@@ -169,10 +173,10 @@ class AccidentService {
 
   // ✅ Get nearby accidents
   Future<List<Accident>> getNearbyAccidents(
-      double latitude,
-      double longitude, {
-        double radiusKm = 5.0,
-      }) async {
+    double latitude,
+    double longitude, {
+    double radiusKm = 5.0,
+  }) async {
     try {
       final response = await _dio.get(
         ApiConfig.nearbyAccidentsEndpoint,
@@ -197,7 +201,9 @@ class AccidentService {
   // ✅ Get accident by ID
   Future<Accident?> getAccidentById(String accidentId) async {
     try {
-      final response = await _dio.get('${ApiConfig.accidentsEndpoint}/$accidentId');
+      final response = await _dio.get(
+        '${ApiConfig.accidentsEndpoint}/$accidentId',
+      );
 
       if (response.data is Map && response.data['success'] == true) {
         return Accident.fromJson(response.data['data']);
@@ -278,11 +284,11 @@ class AccidentService {
 
   // ✅ Update accident
   Future<Accident> updateAccident(
-      String accidentId, {
-        String? description,
-        AccidentSeverity? severity,
-        AccidentStatus? status,
-      }) async {
+    String accidentId, {
+    String? description,
+    AccidentSeverity? severity,
+    AccidentStatus? status,
+  }) async {
     try {
       Map<String, dynamic> data = {};
 
@@ -313,7 +319,9 @@ class AccidentService {
   // ✅ Delete accident
   Future<bool> deleteAccident(String accidentId) async {
     try {
-      final response = await _dio.delete('${ApiConfig.accidentsEndpoint}/$accidentId');
+      final response = await _dio.delete(
+        '${ApiConfig.accidentsEndpoint}/$accidentId',
+      );
 
       // Clear cache after delete
       clearCache();
@@ -327,7 +335,9 @@ class AccidentService {
   // ✅ Verify accident
   Future<bool> verifyAccident(String accidentId) async {
     try {
-      final response = await _dio.post('${ApiConfig.accidentsEndpoint}/$accidentId/verify');
+      final response = await _dio.post(
+        '${ApiConfig.accidentsEndpoint}/$accidentId/verify',
+      );
 
       // Clear cache after verification
       clearCache();
@@ -340,17 +350,14 @@ class AccidentService {
 
   // ✅ Report false accident
   Future<bool> reportFalseAccident(
-      String accidentId, {
-        required String reason,
-        String? comment,
-      }) async {
+    String accidentId, {
+    required String reason,
+    String? comment,
+  }) async {
     try {
       final response = await _dio.post(
         '${ApiConfig.accidentsEndpoint}/$accidentId/false-report',
-        data: {
-          'reason': reason,
-          'comment': comment,
-        },
+        data: {'reason': reason, 'comment': comment},
       );
 
       // Clear cache after reporting false
@@ -365,7 +372,9 @@ class AccidentService {
   // ✅ Get accident statistics
   Future<Map<String, dynamic>> getStatistics() async {
     try {
-      final response = await _dio.get('${ApiConfig.accidentsEndpoint}/statistics');
+      final response = await _dio.get(
+        '${ApiConfig.accidentsEndpoint}/statistics',
+      );
 
       if (response.data is Map && response.data['success'] == true) {
         return response.data['data'] as Map<String, dynamic>;
@@ -379,9 +388,9 @@ class AccidentService {
 
   // ✅ AI Image Analysis
   Future<Map<String, dynamic>> analyzeImage(
-      File imageFile, {
-        Function(int sent, int total)? onProgress,
-      }) async {
+    File imageFile, {
+    Function(int sent, int total)? onProgress,
+  }) async {
     try {
       FormData formData = FormData.fromMap({
         'image': await MultipartFile.fromFile(imageFile.path),
@@ -453,8 +462,8 @@ class AccidentService {
 
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
-        final message = e.response?.data?['error'] ??
-            e.response?.data?['message'];
+        final message =
+            e.response?.data?['error'] ?? e.response?.data?['message'];
 
         if (statusCode == 401) {
           return 'Нэвтрэх эрх дууссан. Дахин нэвтэрнэ үү.';
