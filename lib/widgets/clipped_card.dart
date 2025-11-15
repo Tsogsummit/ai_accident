@@ -13,7 +13,7 @@ class ClippedCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const ClippedCard({
-    Key? key,
+    super.key,
     required this.child,
     this.margin,
     this.color,
@@ -21,7 +21,7 @@ class ClippedCard extends StatelessWidget {
     this.shape,
     this.clipBehavior = Clip.antiAlias,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

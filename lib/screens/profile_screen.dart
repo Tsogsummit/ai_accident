@@ -8,7 +8,7 @@ import '../config/api_config.dart';
 import 'api_test_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -97,8 +97,8 @@ class ProfileScreen extends StatelessWidget {
                         Divider(height: 16),
                         _buildApiInfoRow('Горим', ApiConfig.connectionMode),
                         _buildApiInfoRow('IP хаяг', ApiConfig.localIP),
-                        _buildApiInfoRow('Auth', '${ApiConfig.authServiceUrl}'),
-                        _buildApiInfoRow('Accident', '${ApiConfig.accidentServiceUrl}'),
+                        _buildApiInfoRow('Auth', ApiConfig.authServiceUrl),
+                        _buildApiInfoRow('Accident', ApiConfig.accidentServiceUrl),
                         SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,

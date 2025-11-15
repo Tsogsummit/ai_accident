@@ -10,7 +10,7 @@ class AccidentProvider extends ChangeNotifier {
   // Loading states
   bool _isLoading = false;
   bool _isRefreshing = false;
-  bool _isLoadingMore = false;
+  final bool _isLoadingMore = false;
 
   // Error handling
   String _error = '';

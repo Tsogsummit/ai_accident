@@ -7,7 +7,7 @@ import '../config/api_config.dart';
 import 'dart:convert';
 
 class ApiTestScreen extends StatefulWidget {
-  const ApiTestScreen({Key? key}) : super(key: key);
+  const ApiTestScreen({super.key});
 
   @override
   State<ApiTestScreen> createState() => _ApiTestScreenState();
@@ -313,10 +313,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
           FloatingActionButton(
             heroTag: 'individual',
             onPressed: _showIndividualTestDialog,
-            child: Icon(Icons.filter_1),
             mini: true,
             backgroundColor: Colors.orange,
             tooltip: 'Тусад нь тестлэх',
+            child: Icon(Icons.filter_1),
           ),
           SizedBox(height: 12),
           FloatingActionButton(
@@ -324,9 +324,9 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
             onPressed: () {
               setState(() => _testResults.clear());
             },
-            child: Icon(Icons.clear_all),
             backgroundColor: Colors.red,
             tooltip: 'Цэвэрлэх',
+            child: Icon(Icons.clear_all),
           ),
         ],
       ),

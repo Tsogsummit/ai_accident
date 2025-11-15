@@ -6,9 +6,9 @@ class AccidentBottomSheet extends StatelessWidget {
   final Accident accident;
 
   const AccidentBottomSheet({
-    Key? key,
+    super.key,
     required this.accident,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

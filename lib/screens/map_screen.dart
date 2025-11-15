@@ -7,13 +7,15 @@ import '../providers/accident_provider.dart';
 import '../models/accident.dart';
 
 class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
+
   @override
   _MapScreenState createState() => _MapScreenState();
 }
 
 class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixin {
   GoogleMapController? _mapController;
-  Completer<GoogleMapController> _controller = Completer();
+  final Completer<GoogleMapController> _controller = Completer();
 
   Position? _currentPosition;
   StreamSubscription<Position>? _positionStreamSubscription;
@@ -427,16 +429,16 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
           FloatingActionButton(
             heroTag: "location",
             onPressed: _moveToCurrentLocation,
-            child: Icon(Icons.my_location),
             mini: true,
             backgroundColor: Colors.blue,
+            child: Icon(Icons.my_location),
           ),
           SizedBox(height: 12),
           FloatingActionButton(
             heroTag: "refresh",
             onPressed: _loadAccidents,
-            child: Icon(Icons.refresh),
             backgroundColor: Colors.green,
+            child: Icon(Icons.refresh),
           ),
         ],
       ),
