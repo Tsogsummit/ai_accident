@@ -1,7 +1,8 @@
-// lib/services/video_service.dart - FIXED VERSION (No server-side dependencies)
+// lib/services/video_service.dart - COMPLETELY FIXED (Mobile/Flutter compatible)
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
+import 'package:path/path.dart' as path;
 import '../config/api_config.dart';
 import 'auth_service.dart';
 
@@ -17,7 +18,7 @@ class VideoService {
         receiveTimeout: Duration(minutes: 5),
         sendTimeout: Duration(minutes: 5),
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'multipart/form-data', // ✅ IMPORTANT for file upload
           'Accept': 'application/json',
         },
         validateStatus: (status) {
@@ -73,7 +74,7 @@ class VideoService {
       _dio.interceptors.add(
         LogInterceptor(
           request: true,
-          requestBody: false,
+          requestBody: false, // Don't log binary data
           responseBody: true,
           error: true,
         ),
@@ -82,7 +83,7 @@ class VideoService {
   }
   
   // ==========================================
-  // VIDEO UPLOAD - SIMPLIFIED & FIXED
+  // ✅✅✅ VIDEO UPLOAD - MOBILE/FLUTTER COMPATIBLE
   // ==========================================
   
   Future<Map<String, dynamic>> uploadVideo({
@@ -94,6 +95,11 @@ class VideoService {
     Function(int sent, int total)? onProgress,
   }) async {
     try {
+      // Validate file exists
+      if (!await videoFile.exists()) {
+        throw Exception('Видео файл олдсонгүй');
+      }
+
       // Validate file size
       final fileSize = await videoFile.length();
       if (!ApiConfig.isValidVideoSize(fileSize)) {
@@ -104,14 +110,17 @@ class VideoService {
       }
       
       // Validate extension
-      if (!ApiConfig.isValidVideoExtension(videoFile.path)) {
+      final fileName = path.basename(videoFile.path);
+      if (!ApiConfig.isValidVideoExtension(fileName)) {
         throw Exception(
           'Видеоны формат буруу. Зөвшөөрөгдсөн: ${ApiConfig.allowedVideoFormats.join(", ")}'
         );
       }
       
-      print('📹 Video upload эхэллээ: ${ApiConfig.formatFileSize(fileSize)}');
-      print('📍 Location: $latitude, $longitude');
+      print('📹 Video upload эхэллээ');
+      print('   File: $fileName');
+      print('   Size: ${ApiConfig.formatFileSize(fileSize)}');
+      print('   Location: $latitude, $longitude');
       
       // Get user ID
       final userId = await _authService.getUserId();
@@ -121,23 +130,24 @@ class VideoService {
       
       print('👤 User ID: $userId');
       
-      // Get file name
-      final fileName = videoFile.path.split('/').last;
+      // ✅ CRITICAL FIX: Use MultipartFile.fromFileSync for Flutter/mobile
+      // This is the MOBILE version, not server version
+      final multipartFile = await MultipartFile.fromFile(
+        videoFile.path,
+        filename: fileName,
+      );
       
-      // ✅ FIXED: Prepare form data (Flutter/Dart compatible)
-      FormData formData = FormData.fromMap({
+      // ✅ Prepare form data (Flutter/mobile compatible)
+      final formData = FormData.fromMap({
         'userId': userId.toString(),
         'latitude': latitude.toString(),
         'longitude': longitude.toString(),
         'description': description,
         'severity': severity,
-        'video': await MultipartFile.fromFile(
-          videoFile.path,
-          filename: fileName,
-        ),
+        'video': multipartFile, // ✅ Use the created multipart file
       });
       
-      print('📤 Sending to: ${ApiConfig.videoServiceUrl}/upload');
+      print('📤 Uploading to: ${ApiConfig.videoServiceUrl}/upload');
       
       // Upload video
       final response = await _dio.post(
@@ -145,7 +155,7 @@ class VideoService {
         data: formData,
         onSendProgress: (sent, total) {
           final progress = sent / total;
-          print('📊 Upload: ${(progress * 100).toStringAsFixed(1)}% ($sent / $total bytes)');
+          print('📊 Upload: ${(progress * 100).toStringAsFixed(1)}%');
           if (onProgress != null) {
             onProgress(sent, total);
           }
@@ -153,37 +163,51 @@ class VideoService {
       );
       
       print('📥 Response status: ${response.statusCode}');
-      print('📥 Response data: ${response.data}');
+      print('📥 Response: ${response.data}');
       
+      // Handle response
       if (response.statusCode == 200 || response.statusCode == 201) {
-        if (response.data is Map && response.data['success'] == true) {
+        final data = response.data;
+        
+        if (data is Map && data['success'] == true) {
           print('✅ Видео амжилттай илгээгдлээ');
+          print('   VideoId: ${data['videoId']}');
+          print('   AccidentId: ${data['accidentId']}');
           
           return {
             'success': true,
-            'message': response.data['message'] ?? 'Видео амжилттай илгээгдлээ',
-            'videoId': response.data['videoId'],
-            'accidentId': response.data['accidentId'],
-            'status': response.data['status'] ?? 'uploaded',
-            'accident': response.data['accident'],
+            'message': data['message'] ?? 'Видео амжилттай илгээгдлээ',
+            'videoId': data['videoId'],
+            'accidentId': data['accidentId'],
+            'status': data['status'] ?? 'uploaded',
+            'accident': data['accident'],
           };
         } else {
-          throw Exception(response.data['error'] ?? 'Видео илгээхэд алдаа гарлаа');
+          final errorMsg = data is Map 
+              ? (data['error'] ?? 'Тодорхойгүй алдаа') 
+              : 'Хариу буруу байна';
+          throw Exception(errorMsg);
         }
       } else {
         throw Exception(
           'Server error: ${response.statusCode}\n'
-          '${response.data?['error'] ?? response.data?['message'] ?? 'Unknown error'}'
+          '${response.data}'
         );
       }
+      
     } on DioException catch (e) {
-      print('❌ DioException: ${e.type}');
+      print('❌ DioException type: ${e.type}');
       print('❌ Message: ${e.message}');
       print('❌ Response: ${e.response?.data}');
-      throw _handleError(e);
-    } catch (e) {
+      print('❌ Error: ${e.error}');
+      
+      throw Exception(_handleError(e));
+      
+    } catch (e, stackTrace) {
       print('❌ Unexpected error: $e');
-      throw Exception('Видео илгээхэд алдаа гарлаа: $e');
+      print('❌ Stack trace: $stackTrace');
+      
+      throw Exception('Видео илгээхэд алдаа: $e');
     }
   }
   
@@ -195,19 +219,27 @@ class VideoService {
     try {
       final response = await _dio.get('/videos/$videoId/status');
       
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        return {
-          'success': true,
-          'videoId': response.data['videoId'],
-          'accidentId': response.data['accidentId'],
-          'status': response.data['status'],
-          'accident': response.data['accident'],
-        };
+      if (response.statusCode == 200) {
+        final data = response.data;
+        
+        if (data is Map && data['success'] == true) {
+          return {
+            'success': true,
+            'videoId': data['videoId'],
+            'accidentId': data['accidentId'],
+            'status': data['status'],
+            'accident': data['accident'],
+          };
+        }
       }
       
-      return {'success': false, 'error': 'Статус авахад алдаа гарлаа'};
+      return {
+        'success': false, 
+        'error': 'Статус авахад алдаа гарлаа'
+      };
+      
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw Exception(_handleError(e));
     }
   }
   
@@ -221,7 +253,7 @@ class VideoService {
     String? status,
   }) async {
     try {
-      Map<String, dynamic> queryParams = {};
+      final queryParams = <String, dynamic>{};
       if (limit != null) queryParams['limit'] = limit;
       if (offset != null) queryParams['offset'] = offset;
       if (status != null) queryParams['status'] = status;
@@ -231,12 +263,19 @@ class VideoService {
         queryParameters: queryParams,
       );
       
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        final List<dynamic> data = response.data['data'] ?? [];
-        return data.cast<Map<String, dynamic>>();
+      if (response.statusCode == 200) {
+        final data = response.data;
+        
+        if (data is Map && data['success'] == true) {
+          final list = data['data'] as List?;
+          if (list != null) {
+            return list.cast<Map<String, dynamic>>();
+          }
+        }
       }
       
       return [];
+      
     } on DioException catch (e) {
       print('❌ Get videos error: ${e.message}');
       return [];
@@ -256,7 +295,10 @@ class VideoService {
         data: {'userId': userId},
       );
       
-      return response.statusCode == 200 && response.data['success'] == true;
+      return response.statusCode == 200 && 
+             response.data is Map && 
+             response.data['success'] == true;
+             
     } on DioException catch (e) {
       print('❌ Delete video error: ${e.message}');
       return false;
@@ -264,22 +306,17 @@ class VideoService {
   }
   
   // ==========================================
-  // ERROR HANDLING
+  // ERROR HANDLING - Mongolian messages
   // ==========================================
   
   String _handleError(DioException e) {
-    print('🔍 Error details:');
-    print('   Type: ${e.type}');
-    print('   Message: ${e.message}');
-    print('   Response: ${e.response?.data}');
-    
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
-        return 'Файл илгээх хугацаа дууслаа. Интернет холболтоо шалгана уу.';
+        return 'Холболтын хугацаа дууслаа. Интернет холболтоо шалгана уу.';
         
       case DioExceptionType.receiveTimeout:
-        return 'Серверээс хариу хүлээх хугацаа дууслаа. Дахин оролдоно уу.';
+        return 'Хариу хүлээх хугацаа дууслаа. Дахин оролдоно уу.';
         
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
@@ -291,26 +328,44 @@ class VideoService {
           message = data['error']?.toString() ?? 
                    data['message']?.toString() ?? 
                    'Тодорхойгүй алдаа';
+        } else if (data is String) {
+          message = data;
         }
         
-        if (statusCode == 401) {
-          return 'Нэвтрэх эрх дууссан. Дахин нэвтэрнэ үү.';
-        } else if (statusCode == 413) {
-          return 'Файл хэт том байна. Багасгаад дахин оролдоно уу.';
-        } else if (statusCode == 415) {
-          return 'Файлын формат буруу байна.';
+        switch (statusCode) {
+          case 400:
+            return 'Буруу хүсэлт: $message';
+          case 401:
+            return 'Нэвтрэх эрх дууссан. Дахин нэвтэрнэ үү.';
+          case 403:
+            return 'Хандах эрх байхгүй.';
+          case 404:
+            return 'Олдсонгүй: $message';
+          case 413:
+            return 'Файл хэт том байна.';
+          case 415:
+            return 'Файлын формат буруу байна.';
+          case 500:
+            return 'Серверийн алдаа: $message';
+          case 503:
+            return 'Үйлчилгээ түр зогссон байна.';
+          default:
+            return '$message (Код: $statusCode)';
         }
-        
-        return '$message (Код: $statusCode)';
         
       case DioExceptionType.connectionError:
-        return 'Интернет холболт тасарсан. WiFi эсвэл мобайл датаа шалгана уу.';
+        return 'Интернет холболт алдаатай. WiFi эсвэл мобайл датаа шалгана уу.';
         
       case DioExceptionType.cancel:
         return 'Upload цуцлагдсан';
         
+      case DioExceptionType.badCertificate:
+        return 'Аюулгүй холболтын алдаа';
+        
+      case DioExceptionType.unknown:
       default:
-        return 'Файл илгээхэд алдаа гарлаа: ${e.message ?? "Unknown error"}';
+        final errorMsg = e.error?.toString() ?? e.message ?? 'Тодорхойгүй алдаа';
+        return 'Алдаа гарлаа: $errorMsg';
     }
   }
   

@@ -1,4 +1,4 @@
-// lib/screens/camera_screen.dart - БҮРЭН ЗАСВАРЛАСАН ХУВИЛБАР
+// lib/screens/camera_screen.dart - FIXED WITH BETTER ERROR HANDLING
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -17,7 +17,7 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with WidgetsBindingObserver { // ✅ ШИНЭ - lifecycle observer
+    with WidgetsBindingObserver {
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
   bool _isInitialized = false;
@@ -25,33 +25,28 @@ class _CameraScreenState extends State<CameraScreen>
   String? _error;
   bool _permissionDenied = false;
 
-  // Video recording
   String? _videoPath;
   Timer? _recordingTimer;
   int _recordingSeconds = 0;
 
-  // Location
   Position? _currentPosition;
-
-  // ✅ ШИНЭ - screen visibility tracking
   bool _isScreenActive = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this); // ✅ ШИНЭ
+    WidgetsBinding.instance.addObserver(this);
     _initializeCameraWithTimeout();
     _getCurrentLocation();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this); // ✅ ШИНЭ
-    _cleanupResources(); // ✅ ШИНЭ - centralized cleanup
+    WidgetsBinding.instance.removeObserver(this);
+    _cleanupResources();
     super.dispose();
   }
 
-  // ✅✅✅ ШИНЭ - App lifecycle handling
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final CameraController? cameraController = _cameraController;
@@ -61,19 +56,16 @@ class _CameraScreenState extends State<CameraScreen>
     }
 
     if (state == AppLifecycleState.inactive) {
-      // App going to background
       _isScreenActive = false;
       if (_isRecording) {
         print('⚠️ App inactive - stopping recording');
         _stopRecording();
       }
     } else if (state == AppLifecycleState.resumed) {
-      // App came back to foreground
       _isScreenActive = true;
     }
   }
 
-  // ✅ ШИНЭ - Centralized cleanup
   void _cleanupResources() {
     print('🧹 Cleaning up camera resources...');
     _recordingTimer?.cancel();
@@ -91,7 +83,6 @@ class _CameraScreenState extends State<CameraScreen>
       _cameraController = null;
     }
     
-    // Delete temp video file if exists
     if (_videoPath != null) {
       _deleteVideo();
     }
@@ -179,7 +170,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   Future<void> _toggleRecording() async {
     if (!_isInitialized || _cameraController == null) return;
-    if (!_isScreenActive) return; // ✅ ШИНЭ - prevent recording if not active
+    if (!_isScreenActive) return;
 
     if (_isRecording) {
       await _stopRecording();
@@ -189,7 +180,7 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _startRecording() async {
-    if (!_isScreenActive) return; // ✅ ШИНЭ
+    if (!_isScreenActive) return;
 
     try {
       await _cameraController!.startVideoRecording();
@@ -268,7 +259,7 @@ class _CameraScreenState extends State<CameraScreen>
       enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (context) => WillPopScope(
-        onWillPop: () async => false, // ✅ ШИНЭ - prevent back button
+        onWillPop: () async => false,
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -346,26 +337,30 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-  // ✅✅✅ ЗАСВАРЛАСАН: VideoService ашиглан upload хийх
+  // ✅✅✅ FIXED: Better error handling and logging
   Future<void> _uploadVideo() async {
     if (_videoPath == null) {
       print('❌ Video path null байна');
+      _showErrorDialog('Видео файл олдсонгүй');
       return;
     }
 
-    // Байршил шалгах
+    // Check if file exists
+    final videoFile = File(_videoPath!);
+    if (!await videoFile.exists()) {
+      print('❌ Video файл байхгүй: $_videoPath');
+      _showErrorDialog('Видео файл олдсонгүй');
+      return;
+    }
+
+    print('✅ Video файл олдлоо: $_videoPath');
+    print('   Size: ${await videoFile.length()} bytes');
+
+    // Get location
     if (_currentPosition == null) {
       await _getCurrentLocation();
       if (_currentPosition == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('⚠️ Байршил тодорхойгүй байна. Default байршил ашиглана...'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        // Default байршил (Улаанбаатар)
+        print('⚠️ Using default location');
         _currentPosition = Position(
           latitude: 47.9184,
           longitude: 106.9177,
@@ -381,14 +376,16 @@ class _CameraScreenState extends State<CameraScreen>
       }
     }
 
-    // Loading dialog харуулах
+    print('📍 Location: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}');
+
+    // Show loading dialog
     if (!mounted) return;
     
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => WillPopScope(
-        onWillPop: () async => false, // ✅ Prevent dismissal
+        onWillPop: () async => false,
         child: Consumer<AccidentProvider>(
           builder: (context, provider, child) {
             return AlertDialog(
@@ -423,21 +420,24 @@ class _CameraScreenState extends State<CameraScreen>
     );
 
     try {
+      print('📤 Starting upload...');
+      
       final provider = Provider.of<AccidentProvider>(context, listen: false);
 
-      // ✅✅✅ VideoService ашиглах - ШИНЭ FUNCTION
       final result = await provider.uploadVideoAccident(
-        videoFile: File(_videoPath!),
+        videoFile: videoFile,
         latitude: _currentPosition!.latitude,
         longitude: _currentPosition!.longitude,
         description: 'Камераас бичигдсэн осол (${_formatDuration(_recordingSeconds)})',
         severity: AccidentSeverity.moderate,
       );
 
-      _deleteVideo(); // Амжилттай илгээсний дараа устгах
+      print('✅ Upload result: $result');
+
+      _deleteVideo(); // Delete after successful upload
 
       if (!mounted) return;
-      Navigator.pop(context); // Loading dialog хаах
+      Navigator.pop(context); // Close loading dialog
 
       if (result != null && result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -453,7 +453,7 @@ class _CameraScreenState extends State<CameraScreen>
                     children: [
                       Text('✅ Видео амжилттай илгээгдлээ'),
                       Text(
-                        'AI боловсруулж байна...',
+                        'AccidentId: ${result['accidentId']}',
                         style: TextStyle(fontSize: 12),
                       ),
                     ],
@@ -468,33 +468,49 @@ class _CameraScreenState extends State<CameraScreen>
       } else {
         throw Exception('Видео илгээлт амжилтгүй');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('❌ Video upload error: $e');
+      print('❌ Stack trace: $stackTrace');
       
       if (!mounted) return;
-      Navigator.pop(context); // Loading dialog хаах
+      Navigator.pop(context); // Close loading dialog
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text('❌ Илгээхэд алдаа: $e'),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Дахин',
-            textColor: Colors.white,
-            onPressed: _uploadVideo,
-          ),
-        ),
-      );
+      _showErrorDialog('Видео илгээхэд алдаа гарлаа:\n\n$e');
     }
+  }
+
+  void _showErrorDialog(String message) {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.error, color: Colors.red),
+            SizedBox(width: 12),
+            Text('Алдаа'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Text(message),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Хаах'),
+          ),
+          if (_videoPath != null)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _uploadVideo(); // Retry
+              },
+              child: Text('Дахин оролдох'),
+            ),
+        ],
+      ),
+    );
   }
 
   String _formatDuration(int seconds) {
@@ -507,7 +523,6 @@ class _CameraScreenState extends State<CameraScreen>
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // ✅ ШИНЭ - Handle back button
         if (_isRecording) {
           final shouldPop = await showDialog<bool>(
             context: context,
@@ -621,10 +636,8 @@ class _CameraScreenState extends State<CameraScreen>
 
     return Stack(
       children: [
-        // Camera Preview
         Positioned.fill(child: CameraPreview(_cameraController!)),
 
-        // Recording indicator
         if (_isRecording)
           Positioned(
             top: 16,
@@ -640,11 +653,7 @@ class _CameraScreenState extends State<CameraScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.fiber_manual_record,
-                      color: Colors.white,
-                      size: 16,
-                    ),
+                    Icon(Icons.fiber_manual_record, color: Colors.white, size: 16),
                     SizedBox(width: 8),
                     Text(
                       _formatDuration(_recordingSeconds),
@@ -659,7 +668,6 @@ class _CameraScreenState extends State<CameraScreen>
             ),
           ),
 
-        // Record button
         Positioned(
           bottom: 40,
           left: 0,
