@@ -1,27 +1,22 @@
-// lib/providers/accident_provider.dart - VIDEO UPLOAD НЭМСЭН ХУВИЛБАР
+// lib/providers/accident_provider.dart - FIXED VERSION
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../models/accident.dart';
 import '../services/accident_service.dart';
-import '../services/video_service.dart'; // ✅ ШИНЭ
+import '../services/video_service.dart';
 
 class AccidentProvider extends ChangeNotifier {
   List<Accident> _accidents = [];
   List<Accident> _filteredAccidents = [];
 
-  // Loading states
   bool _isLoading = false;
   bool _isRefreshing = false;
-
-  // Error handling
   String _error = '';
   DateTime? _lastFetchTime;
 
-  // Upload progress
   double _uploadProgress = 0.0;
   bool _isUploading = false;
 
-  // Filters
   Set<AccidentSource> _sourceFilters = {
     AccidentSource.user,
     AccidentSource.camera
@@ -50,7 +45,7 @@ class AccidentProvider extends ChangeNotifier {
   Set<AccidentStatus> get statusFilters => _statusFilters;
 
   final AccidentService _accidentService = AccidentService();
-  final VideoService _videoService = VideoService(); // ✅ ШИНЭ
+  final VideoService _videoService = VideoService();
 
   // Statistics
   int get totalAccidents => _accidents.length;
@@ -72,7 +67,7 @@ class AccidentProvider extends ChangeNotifier {
   int get resolvedAccidents =>
       _accidents.where((a) => a.status == AccidentStatus.resolved).length;
 
-  // ✅ Load accidents from API
+  // Load accidents
   Future<void> loadAccidents({bool forceRefresh = false}) async {
     if (_isLoading || _isRefreshing) return;
 
@@ -103,7 +98,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Refresh accidents
+  // Refresh accidents
   Future<void> refreshAccidents() async {
     if (_isRefreshing) return;
 
@@ -132,7 +127,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Load nearby accidents
+  // Load nearby accidents
   Future<void> loadNearbyAccidents(
       double latitude,
       double longitude, {
@@ -166,58 +161,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Report accident with IMAGE (шинэ/хуучин хувилбар)
-  Future<Accident?> reportAccident({
-    required double latitude,
-    required double longitude,
-    required String description,
-    AccidentSeverity? severity,
-    File? imageFile,
-    File? videoFile, // Хэрэв video байвал энийг БИТГИЙ АШИГЛА!
-  }) async {
-    try {
-      _isUploading = true;
-      _uploadProgress = 0.0;
-      _error = '';
-      notifyListeners();
-
-      print('📤 Осол мэдээлж байна...');
-
-      final accident = await _accidentService.reportAccident(
-        latitude: latitude,
-        longitude: longitude,
-        description: description,
-        severity: severity,
-        imageFile: imageFile,
-        videoFile: videoFile,
-        onProgress: (sent, total) {
-          _uploadProgress = sent / total;
-          notifyListeners();
-        },
-      );
-
-      print('✅ Осол амжилттай мэдээлэгдлээ');
-
-      _accidents.insert(0, accident);
-      _applyFilters();
-      _lastFetchTime = DateTime.now();
-
-      _isUploading = false;
-      _uploadProgress = 0.0;
-      notifyListeners();
-
-      return accident;
-    } catch (e) {
-      _error = e.toString();
-      print('❌ Осол мэдээлэхэд алдаа: $_error');
-      _isUploading = false;
-      _uploadProgress = 0.0;
-      notifyListeners();
-      return null;
-    }
-  }
-
-  // ✅✅✅ ШИНЭ: VIDEO UPLOAD - VideoService ашиглах
+  // ✅✅✅ FIXED: VIDEO UPLOAD with proper response handling
   Future<Map<String, dynamic>?> uploadVideoAccident({
     required File videoFile,
     required double latitude,
@@ -234,7 +178,7 @@ class AccidentProvider extends ChangeNotifier {
 
       print('📹 Видео upload эхэллээ...');
 
-      // VideoService дуудах
+      // Call VideoService
       final result = await _videoService.uploadVideo(
         videoFile: videoFile,
         latitude: latitude,
@@ -250,17 +194,44 @@ class AccidentProvider extends ChangeNotifier {
         },
       );
 
-      print('✅ Видео амжилттай илгээгдлээ: ${result['videoId']}');
+      print('✅ Response received: $result');
 
-      // Accidents-ийг дахин ачаалах (AI боловсруулалтын дараа)
-      await Future.delayed(Duration(seconds: 2));
-      await loadAccidents(forceRefresh: true);
+      if (result['success'] == true) {
+        print('✅ Video амжилттай илгээгдлээ');
+        print('   VideoId: ${result['videoId']}');
+        print('   AccidentId: ${result['accidentId']}');
 
-      _isUploading = false;
-      _uploadProgress = 0.0;
-      notifyListeners();
+        // ✅ Parse accident from response
+        if (result['accident'] != null) {
+          final accidentData = result['accident'];
+          final newAccident = Accident(
+            id: accidentData['id'].toString(),
+            latitude: double.parse(accidentData['latitude'].toString()),
+            longitude: double.parse(accidentData['longitude'].toString()),
+            description: accidentData['description'] ?? description,
+            severity: _parseSeverity(accidentData['severity']),
+            status: _parseStatus(accidentData['status']),
+            source: AccidentSource.user,
+            timestamp: DateTime.now(),
+          );
 
-      return result;
+          // Add to list
+          _accidents.insert(0, newAccident);
+          _applyFilters();
+        } else {
+          // Fallback: reload all accidents
+          await Future.delayed(Duration(seconds: 1));
+          await loadAccidents(forceRefresh: true);
+        }
+
+        _isUploading = false;
+        _uploadProgress = 0.0;
+        notifyListeners();
+
+        return result;
+      } else {
+        throw Exception(result['error'] ?? 'Видео илгээлт амжилтгүй');
+      }
     } catch (e) {
       _error = e.toString();
       print('❌ Видео илгээхэд алдаа: $_error');
@@ -283,7 +254,41 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Update accident
+  // Helper: Parse severity from string
+  AccidentSeverity _parseSeverity(dynamic severity) {
+    if (severity is String) {
+      switch (severity.toLowerCase()) {
+        case 'severe':
+          return AccidentSeverity.severe;
+        case 'moderate':
+          return AccidentSeverity.moderate;
+        case 'minor':
+        default:
+          return AccidentSeverity.minor;
+      }
+    }
+    return AccidentSeverity.minor;
+  }
+
+  // Helper: Parse status from string
+  AccidentStatus _parseStatus(dynamic status) {
+    if (status is String) {
+      switch (status.toLowerCase()) {
+        case 'confirmed':
+          return AccidentStatus.confirmed;
+        case 'resolved':
+          return AccidentStatus.resolved;
+        case 'false_alarm':
+          return AccidentStatus.falseAlarm;
+        case 'reported':
+        default:
+          return AccidentStatus.reported;
+      }
+    }
+    return AccidentStatus.reported;
+  }
+
+  // Update accident
   Future<bool> updateAccident(
       String accidentId, {
         String? description,
@@ -315,7 +320,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Verify accident
+  // Verify accident
   Future<bool> verifyAccident(String accidentId) async {
     try {
       _error = '';
@@ -339,7 +344,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Report false accident
+  // Report false accident
   Future<bool> reportFalseAccident(
       String accidentId, {
         required String reason,
@@ -364,7 +369,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Delete accident
+  // Delete accident
   Future<bool> deleteAccident(String accidentId) async {
     try {
       _error = '';
@@ -471,7 +476,7 @@ class AccidentProvider extends ChangeNotifier {
   @override
   void dispose() {
     _accidentService.dispose();
-    _videoService.dispose(); // ✅ ШИНЭ
+    _videoService.dispose();
     super.dispose();
   }
 }

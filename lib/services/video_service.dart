@@ -1,4 +1,4 @@
-// lib/services/video_service.dart - ЗАСВАРЛАСАН FLUTTER VIDEO SERVICE
+// lib/services/video_service.dart - FIXED VERSION (No server-side dependencies)
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
@@ -16,7 +16,10 @@ class VideoService {
         connectTimeout: Duration(minutes: 2),
         receiveTimeout: Duration(minutes: 5),
         sendTimeout: Duration(minutes: 5),
-        headers: ApiConfig.defaultHeaders,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         validateStatus: (status) {
           return status != null && status < 500;
         },
@@ -79,7 +82,7 @@ class VideoService {
   }
   
   // ==========================================
-  // VIDEO UPLOAD - SIMPLIFIED
+  // VIDEO UPLOAD - SIMPLIFIED & FIXED
   // ==========================================
   
   Future<Map<String, dynamic>> uploadVideo({
@@ -88,7 +91,6 @@ class VideoService {
     required double longitude,
     required String description,
     String severity = 'moderate',
-    File? thumbnailFile,
     Function(int sent, int total)? onProgress,
   }) async {
     try {
@@ -109,6 +111,7 @@ class VideoService {
       }
       
       print('📹 Video upload эхэллээ: ${ApiConfig.formatFileSize(fileSize)}');
+      print('📍 Location: $latitude, $longitude');
       
       // Get user ID
       final userId = await _authService.getUserId();
@@ -116,7 +119,12 @@ class VideoService {
         throw Exception('Нэвтрэх шаардлагатай');
       }
       
-      // Prepare form data
+      print('👤 User ID: $userId');
+      
+      // Get file name
+      final fileName = videoFile.path.split('/').last;
+      
+      // ✅ FIXED: Prepare form data (Flutter/Dart compatible)
       FormData formData = FormData.fromMap({
         'userId': userId.toString(),
         'latitude': latitude.toString(),
@@ -125,12 +133,11 @@ class VideoService {
         'severity': severity,
         'video': await MultipartFile.fromFile(
           videoFile.path,
-          filename: 'accident_${DateTime.now().millisecondsSinceEpoch}.mp4',
+          filename: fileName,
         ),
       });
       
       print('📤 Sending to: ${ApiConfig.videoServiceUrl}/upload');
-      print('📦 Form data: userId=$userId, lat=$latitude, lng=$longitude');
       
       // Upload video
       final response = await _dio.post(
@@ -149,7 +156,7 @@ class VideoService {
       print('📥 Response data: ${response.data}');
       
       if (response.statusCode == 200 || response.statusCode == 201) {
-        if (response.data['success'] == true) {
+        if (response.data is Map && response.data['success'] == true) {
           print('✅ Видео амжилттай илгээгдлээ');
           
           return {
@@ -157,7 +164,8 @@ class VideoService {
             'message': response.data['message'] ?? 'Видео амжилттай илгээгдлээ',
             'videoId': response.data['videoId'],
             'accidentId': response.data['accidentId'],
-            'status': response.data['status'] ?? 'processed',
+            'status': response.data['status'] ?? 'uploaded',
+            'accident': response.data['accident'],
           };
         } else {
           throw Exception(response.data['error'] ?? 'Видео илгээхэд алдаа гарлаа');
@@ -165,7 +173,7 @@ class VideoService {
       } else {
         throw Exception(
           'Server error: ${response.statusCode}\n'
-          '${response.data['error'] ?? response.data['message'] ?? 'Unknown error'}'
+          '${response.data?['error'] ?? response.data?['message'] ?? 'Unknown error'}'
         );
       }
     } on DioException catch (e) {
@@ -185,14 +193,15 @@ class VideoService {
   
   Future<Map<String, dynamic>> getVideoStatus(String videoId) async {
     try {
-      final response = await _dio.get('/$videoId/status');
+      final response = await _dio.get('/videos/$videoId/status');
       
       if (response.statusCode == 200 && response.data['success'] == true) {
         return {
           'success': true,
           'videoId': response.data['videoId'],
-          'status': response.data['status'],
           'accidentId': response.data['accidentId'],
+          'status': response.data['status'],
+          'accident': response.data['accident'],
         };
       }
       
@@ -243,7 +252,7 @@ class VideoService {
       final userId = await _authService.getUserId();
       
       final response = await _dio.delete(
-        '/$videoId',
+        '/videos/$videoId',
         data: {'userId': userId},
       );
       
