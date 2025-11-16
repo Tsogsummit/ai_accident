@@ -2,6 +2,9 @@
 import 'package:flutter/material.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
+import '../services/accident_service.dart';
+import '../models/accident.dart';
+import 'map_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -18,8 +21,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   final NotificationService _notificationService = NotificationService();
   final AuthService _authService = AuthService();
+  final AccidentService _accidentService = AccidentService();
   
   List<Map<String, dynamic>> _notifications = [];
+  List<Accident> _confirmedAccidents = [];
   bool _isLoading = true;
   String? _error;
   int _unreadCount = 0;
@@ -49,33 +54,68 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
       print('📬 Loading notifications for userId: $userId');
 
+      // Load notifications
       final result = await _notificationService.getNotifications(userId);
       
-      print('📥 Result: ${result['success']}');
+      print('📥 Notification Result: ${result['success']}');
+      
+      // Also load confirmed accidents to show even if no notifications
+      print('📬 Loading confirmed accidents...');
+      List<Accident> confirmedAccidents = [];
+      try {
+        confirmedAccidents = await _accidentService.getAllAccidents(
+          status: AccidentStatus.confirmed,
+          limit: 50,
+          forceRefresh: true,
+        );
+        print('✅ Confirmed accidents loaded: ${confirmedAccidents.length}');
+      } catch (e) {
+        print('⚠️ Failed to load confirmed accidents: $e');
+        // Don't fail the whole load if this fails
+      }
       
       if (result['success']) {
         setState(() {
           _notifications = result['notifications'];
           _unreadCount = result['unreadCount'];
+          _confirmedAccidents = confirmedAccidents;
           _error = null;
           _isLoading = false;
         });
-        print('✅ Notifications loaded: ${_notifications.length}');
+        print('✅ Notifications loaded: ${_notifications.length}, Confirmed accidents: ${_confirmedAccidents.length}');
       } else {
+        // Even if notifications fail, show confirmed accidents
         setState(() {
-          _error = result['error'] ?? 'Мэдэгдэл ачаалагдсангүй';
           _notifications = [];
           _unreadCount = 0;
+          _confirmedAccidents = confirmedAccidents;
+          _error = confirmedAccidents.isEmpty 
+              ? (result['error'] ?? 'Мэдэгдэл ачаалагдсангүй')
+              : null; // Don't show error if we have confirmed accidents
           _isLoading = false;
         });
-        print('❌ Load failed: ${result['error']}');
+        print('❌ Load failed: ${result['error']}, but showing ${confirmedAccidents.length} confirmed accidents');
       }
     } catch (e) {
       print('❌ Load notifications exception: $e');
+      // Try to load confirmed accidents even if notifications fail
+      List<Accident> confirmedAccidents = [];
+      try {
+        confirmedAccidents = await _accidentService.getAllAccidents(
+          status: AccidentStatus.confirmed,
+          limit: 50,
+          forceRefresh: true,
+        );
+        print('✅ Loaded ${confirmedAccidents.length} confirmed accidents as fallback');
+      } catch (accidentError) {
+        print('⚠️ Failed to load confirmed accidents: $accidentError');
+      }
+      
       setState(() {
-        _error = 'Алдаа гарлаа: $e';
+        _error = confirmedAccidents.isEmpty ? 'Алдаа гарлаа: $e' : null;
         _notifications = [];
         _unreadCount = 0;
+        _confirmedAccidents = confirmedAccidents;
         _isLoading = false;
       });
     }
@@ -346,7 +386,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       );
     }
 
-    if (_notifications.isEmpty) {
+    // Show confirmed accidents if no notifications
+    final totalItems = _notifications.length + _confirmedAccidents.length;
+    
+    if (totalItems == 0) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -357,6 +400,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               'Мэдэгдэл байхгүй',
               style: TextStyle(fontSize: 18, color: Colors.grey[700]),
             ),
+            SizedBox(height: 8),
+            Text(
+              'Баталгаажсан осол байхгүй байна',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            ),
           ],
         ),
       );
@@ -366,10 +414,17 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       onRefresh: _loadNotifications,
       child: ListView.builder(
         padding: EdgeInsets.all(8),
-        itemCount: _notifications.length,
+        itemCount: totalItems,
         itemBuilder: (context, index) {
-          final notification = _notifications[index];
-          return _buildNotificationCard(notification);
+          // Show notifications first, then confirmed accidents
+          if (index < _notifications.length) {
+            final notification = _notifications[index];
+            return _buildNotificationCard(notification);
+          } else {
+            final accidentIndex = index - _notifications.length;
+            final accident = _confirmedAccidents[accidentIndex];
+            return _buildConfirmedAccidentCard(accident);
+          }
         },
       ),
     );
@@ -525,6 +580,110 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmedAccidentCard(Accident accident) {
+    String timeAgo = 'Цаг тодорхойгүй';
+    try {
+      final difference = DateTime.now().difference(accident.timestamp);
+      if (difference.inMinutes < 1) {
+        timeAgo = 'Дөнгөж сая';
+      } else if (difference.inMinutes < 60) {
+        timeAgo = '${difference.inMinutes} минутын өмнө';
+      } else if (difference.inHours < 24) {
+        timeAgo = '${difference.inHours} цагийн өмнө';
+      } else {
+        timeAgo = '${difference.inDays} өдрийн өмнө';
+      }
+    } catch (e) {
+      print('Date parse error: $e');
+    }
+
+    return Card(
+      margin: EdgeInsets.symmetric(vertical: 4),
+      color: Colors.green.shade50,
+      child: InkWell(
+        onTap: () {
+          // Navigate to map screen and show accident location
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MapScreen(
+                initialLatitude: accident.latitude,
+                initialLongitude: accident.longitude,
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundColor: Colors.green.withOpacity(0.2),
+                child: Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '🚨 Баталгаажсан осол',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green[900],
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    if (accident.description.isNotEmpty)
+                      Text(
+                        accident.description,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, size: 12, color: Colors.grey[600]),
+                        SizedBox(width: 4),
+                        Text(
+                          '${accident.latitude.toStringAsFixed(4)}, ${accident.longitude.toStringAsFixed(4)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Icon(Icons.access_time, size: 12, color: Colors.grey[600]),
+                        SizedBox(width: 4),
+                        Text(
+                          timeAgo,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

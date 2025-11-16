@@ -19,7 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController();
 
   final List<Widget> _screens = [
-    MapScreen(),
+    const MapScreen(),
     const CameraScreen(),
     const HistoryScreen(),
     const NotificationsScreen(),

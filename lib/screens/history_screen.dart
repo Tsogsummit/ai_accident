@@ -351,22 +351,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                     ),
                   ),
 
-                  // Severity badge
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getSeverityColor(accident.severity),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      accident.severityMongolian,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
                 ],
               ),
 
@@ -505,7 +489,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   SizedBox(height: 20),
 
                   // Details
-                  _buildDetailRow('Хүнд байдал', accident.severityMongolian, Icons.warning, _getSeverityColor(accident.severity)),
                   _buildDetailRow('Төлөв', accident.statusMongolian, Icons.info, _getStatusColor(accident.status)),
                   _buildDetailRow('Мэдээлсэн', accident.reportedBy, Icons.person, Colors.blue),
                   _buildDetailRow('Огноо цаг', _formatDateTime(accident.timestamp), Icons.access_time, Colors.grey[700]!),
@@ -605,17 +588,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
         return Colors.blue;
       case AccidentSource.camera:
         return Colors.purple;
-    }
-  }
-
-  Color _getSeverityColor(AccidentSeverity severity) {
-    switch (severity) {
-      case AccidentSeverity.severe:
-        return Colors.red;
-      case AccidentSeverity.moderate:
-        return Colors.orange;
-      case AccidentSeverity.minor:
-        return Colors.yellow[700]!;
     }
   }
 

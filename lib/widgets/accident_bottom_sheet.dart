@@ -50,7 +50,7 @@ class AccidentBottomSheet extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.warning,
-                        color: _getSeverityColor(accident.severity),
+                        color: Colors.red,
                         size: 28,
                       ),
                       SizedBox(width: 12),
@@ -63,25 +63,6 @@ class AccidentBottomSheet extends StatelessWidget {
                         ),
                       ),
                     ],
-                  ),
-                  
-                  SizedBox(height: 16),
-                  
-                  // Severity badge
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getSeverityColor(accident.severity),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _getSeverityText(accident.severity),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
                   ),
                   
                   SizedBox(height: 16),
@@ -199,28 +180,6 @@ class AccidentBottomSheet extends StatelessWidget {
         },
       ),
     );
-  }
-
-  Color _getSeverityColor(AccidentSeverity severity) {
-    switch (severity) {
-      case AccidentSeverity.minor:
-        return Colors.yellow[700]!;
-      case AccidentSeverity.moderate:
-        return Colors.orange[700]!;
-      case AccidentSeverity.severe:
-        return Colors.red[700]!;
-    }
-  }
-
-  String _getSeverityText(AccidentSeverity severity) {
-    switch (severity) {
-      case AccidentSeverity.minor:
-        return 'Бага зэрэг';
-      case AccidentSeverity.moderate:
-        return 'Дунд зэрэг';
-      case AccidentSeverity.severe:
-        return 'Ноцтой';
-    }
   }
 
   String _getStatusText(AccidentStatus status) {

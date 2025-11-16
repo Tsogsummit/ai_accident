@@ -91,7 +91,6 @@ class VideoService {
     required double latitude,
     required double longitude,
     required String description,
-    String severity = 'moderate',
     Function(int sent, int total)? onProgress,
   }) async {
     try {
@@ -143,7 +142,6 @@ class VideoService {
         'latitude': latitude.toString(),
         'longitude': longitude.toString(),
         'description': description,
-        'severity': severity,
         'video': multipartFile, // ✅ Use the created multipart file
       });
       

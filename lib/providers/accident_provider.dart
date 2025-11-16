@@ -21,11 +21,6 @@ class AccidentProvider extends ChangeNotifier {
     AccidentSource.user,
     AccidentSource.camera
   };
-  Set<AccidentSeverity> _severityFilters = {
-    AccidentSeverity.minor,
-    AccidentSeverity.moderate,
-    AccidentSeverity.severe,
-  };
   Set<AccidentStatus> _statusFilters = {
     AccidentStatus.reported,
     AccidentStatus.confirmed,
@@ -41,7 +36,6 @@ class AccidentProvider extends ChangeNotifier {
   String get error => _error;
   DateTime? get lastFetchTime => _lastFetchTime;
   Set<AccidentSource> get sourceFilters => _sourceFilters;
-  Set<AccidentSeverity> get severityFilters => _severityFilters;
   Set<AccidentStatus> get statusFilters => _statusFilters;
 
   final AccidentService _accidentService = AccidentService();
@@ -54,12 +48,6 @@ class AccidentProvider extends ChangeNotifier {
       _accidents.where((a) => a.source == AccidentSource.user).length;
   int get cameraAccidents =>
       _accidents.where((a) => a.source == AccidentSource.camera).length;
-  int get severeAccidents =>
-      _accidents.where((a) => a.severity == AccidentSeverity.severe).length;
-  int get moderateAccidents =>
-      _accidents.where((a) => a.severity == AccidentSeverity.moderate).length;
-  int get minorAccidents =>
-      _accidents.where((a) => a.severity == AccidentSeverity.minor).length;
   int get reportedAccidents =>
       _accidents.where((a) => a.status == AccidentStatus.reported).length;
   int get confirmedAccidents =>
@@ -167,7 +155,6 @@ class AccidentProvider extends ChangeNotifier {
     required double latitude,
     required double longitude,
     required String description,
-    AccidentSeverity severity = AccidentSeverity.moderate,
     Function(int sent, int total)? onProgress,
   }) async {
     try {
@@ -184,7 +171,6 @@ class AccidentProvider extends ChangeNotifier {
         latitude: latitude,
         longitude: longitude,
         description: description,
-        severity: _severityToString(severity),
         onProgress: (sent, total) {
           _uploadProgress = sent / total;
           if (onProgress != null) {
@@ -201,28 +187,14 @@ class AccidentProvider extends ChangeNotifier {
         print('   VideoId: ${result['videoId']}');
         print('   AccidentId: ${result['accidentId']}');
 
-        // ✅ Parse accident from response
-        if (result['accident'] != null) {
-          final accidentData = result['accident'];
-          final newAccident = Accident(
-            id: accidentData['id'].toString(),
-            latitude: double.parse(accidentData['latitude'].toString()),
-            longitude: double.parse(accidentData['longitude'].toString()),
-            description: accidentData['description'] ?? description,
-            severity: _parseSeverity(accidentData['severity']),
-            status: _parseStatus(accidentData['status']),
-            source: AccidentSource.user,
-            timestamp: DateTime.now(),
-          );
-
-          // Add to list
-          _accidents.insert(0, newAccident);
-          _applyFilters();
-        } else {
-          // Fallback: reload all accidents
-          await Future.delayed(Duration(seconds: 1));
-          await loadAccidents(forceRefresh: true);
-        }
+        // ✅ Clear cache to ensure fresh data from backend
+        _accidentService.clearCache();
+        
+        // ✅ Always reload from backend after successful upload
+        // This ensures we get the complete accident data with proper timestamps
+        // and any additional fields that might have been set by the backend
+        await Future.delayed(Duration(milliseconds: 500)); // Small delay to ensure backend has processed
+        await loadAccidents(forceRefresh: true);
 
         _isUploading = false;
         _uploadProgress = 0.0;
@@ -242,57 +214,10 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Helper: Severity to string
-  String _severityToString(AccidentSeverity severity) {
-    switch (severity) {
-      case AccidentSeverity.severe:
-        return 'severe';
-      case AccidentSeverity.moderate:
-        return 'moderate';
-      case AccidentSeverity.minor:
-        return 'minor';
-    }
-  }
-
-  // Helper: Parse severity from string
-  AccidentSeverity _parseSeverity(dynamic severity) {
-    if (severity is String) {
-      switch (severity.toLowerCase()) {
-        case 'severe':
-          return AccidentSeverity.severe;
-        case 'moderate':
-          return AccidentSeverity.moderate;
-        case 'minor':
-        default:
-          return AccidentSeverity.minor;
-      }
-    }
-    return AccidentSeverity.minor;
-  }
-
-  // Helper: Parse status from string
-  AccidentStatus _parseStatus(dynamic status) {
-    if (status is String) {
-      switch (status.toLowerCase()) {
-        case 'confirmed':
-          return AccidentStatus.confirmed;
-        case 'resolved':
-          return AccidentStatus.resolved;
-        case 'false_alarm':
-          return AccidentStatus.falseAlarm;
-        case 'reported':
-        default:
-          return AccidentStatus.reported;
-      }
-    }
-    return AccidentStatus.reported;
-  }
-
   // Update accident
   Future<bool> updateAccident(
       String accidentId, {
         String? description,
-        AccidentSeverity? severity,
         AccidentStatus? status,
       }) async {
     try {
@@ -301,7 +226,6 @@ class AccidentProvider extends ChangeNotifier {
       final updated = await _accidentService.updateAccident(
         accidentId,
         description: description,
-        severity: severity,
         status: status,
       );
 
@@ -399,16 +323,6 @@ class AccidentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleSeverityFilter(AccidentSeverity severity) {
-    if (_severityFilters.contains(severity)) {
-      _severityFilters.remove(severity);
-    } else {
-      _severityFilters.add(severity);
-    }
-    _applyFilters();
-    notifyListeners();
-  }
-
   void toggleStatusFilter(AccidentStatus status) {
     if (_statusFilters.contains(status)) {
       _statusFilters.remove(status);
@@ -425,12 +339,6 @@ class AccidentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setSeverityFilters(Set<AccidentSeverity> severities) {
-    _severityFilters = severities;
-    _applyFilters();
-    notifyListeners();
-  }
-
   void setStatusFilters(Set<AccidentStatus> statuses) {
     _statusFilters = statuses;
     _applyFilters();
@@ -439,11 +347,6 @@ class AccidentProvider extends ChangeNotifier {
 
   void resetFilters() {
     _sourceFilters = {AccidentSource.user, AccidentSource.camera};
-    _severityFilters = {
-      AccidentSeverity.minor,
-      AccidentSeverity.moderate,
-      AccidentSeverity.severe,
-    };
     _statusFilters = {
       AccidentStatus.reported,
       AccidentStatus.confirmed,
@@ -455,10 +358,9 @@ class AccidentProvider extends ChangeNotifier {
   void _applyFilters() {
     _filteredAccidents = _accidents.where((accident) {
       final sourceMatch = _sourceFilters.contains(accident.source);
-      final severityMatch = _severityFilters.contains(accident.severity);
       final statusMatch = _statusFilters.contains(accident.status);
 
-      return sourceMatch && severityMatch && statusMatch;
+      return sourceMatch && statusMatch;
     }).toList();
 
     _filteredAccidents.sort((a, b) => b.timestamp.compareTo(a.timestamp));

@@ -121,7 +121,6 @@ class AccidentService {
   // ✅ Get all accidents with caching
   Future<List<Accident>> getAllAccidents({
     AccidentSource? source,
-    AccidentSeverity? severity,
     AccidentStatus? status,
     double? latitude,
     double? longitude,
@@ -145,9 +144,6 @@ class AccidentService {
         queryParams['source'] = source == AccidentSource.user
             ? 'user'
             : 'camera';
-      }
-      if (severity != null) {
-        queryParams['severity'] = _severityToString(severity);
       }
       if (status != null) {
         queryParams['status'] = _statusToString(status);
@@ -250,7 +246,6 @@ class AccidentService {
     required double latitude,
     required double longitude,
     required String description,
-    AccidentSeverity? severity,
     File? imageFile,
     File? videoFile,
     Function(int sent, int total)? onProgress,
@@ -260,7 +255,6 @@ class AccidentService {
         'latitude': latitude,
         'longitude': longitude,
         'description': description,
-        if (severity != null) 'severity': _severityToString(severity),
       });
 
       // Add image if provided
@@ -314,14 +308,12 @@ class AccidentService {
   Future<Accident> updateAccident(
     String accidentId, {
     String? description,
-    AccidentSeverity? severity,
     AccidentStatus? status,
   }) async {
     try {
       Map<String, dynamic> data = {};
 
       if (description != null) data['description'] = description;
-      if (severity != null) data['severity'] = _severityToString(severity);
       if (status != null) data['status'] = _statusToString(status);
 
       final response = await _dio.put(
@@ -446,18 +438,6 @@ class AccidentService {
         e.type == DioExceptionType.sendTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.connectionError;
-  }
-
-  // Helper: Convert severity to string
-  String _severityToString(AccidentSeverity severity) {
-    switch (severity) {
-      case AccidentSeverity.severe:
-        return 'severe';
-      case AccidentSeverity.moderate:
-        return 'moderate';
-      case AccidentSeverity.minor:
-        return 'minor';
-    }
   }
 
   // Helper: Convert status to string

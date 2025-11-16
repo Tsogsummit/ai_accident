@@ -429,7 +429,6 @@ class _CameraScreenState extends State<CameraScreen>
         latitude: _currentPosition!.latitude,
         longitude: _currentPosition!.longitude,
         description: 'Камераас бичигдсэн осол (${_formatDuration(_recordingSeconds)})',
-        severity: AccidentSeverity.moderate,
       );
 
       print('✅ Upload result: $result');

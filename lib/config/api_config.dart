@@ -9,7 +9,7 @@ class ApiConfig {
   static const bool useGateway = false;
   
   // ⚠️ Өөрийн компьютерийн IP хаяг
-  static const String localIP = 'localhost'; // ЭНИЙГ ӨӨРЧИЛ!
+  static const String localIP = '192.168.0.108'; // ЭНИЙГ ӨӨРЧИЛ!
   
   // Android Emulator: '10.0.2.2'
   // iOS Simulator: 'localhost'

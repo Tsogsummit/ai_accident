@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
@@ -7,7 +9,14 @@ import '../providers/accident_provider.dart';
 import '../models/accident.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final double? initialLatitude;
+  final double? initialLongitude;
+  
+  const MapScreen({
+    super.key,
+    this.initialLatitude,
+    this.initialLongitude,
+  });
 
   @override
   _MapScreenState createState() => _MapScreenState();
@@ -23,8 +32,12 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   Set<Marker> _markers = {};
   bool _isMapReady = false;
   double _currentZoom = 12.0;
+  CameraPosition? _currentCameraPosition;
+  bool _isAnimating = false;
 
   static const LatLng _defaultLocation = LatLng(47.9077, 106.8832); // Ulaanbaatar
+  static const double _minZoom = 5.0;
+  static const double _maxZoom = 20.0;
 
   @override
   bool get wantKeepAlive => true;
@@ -35,6 +48,15 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     _initializeLocation();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAccidents();
+      // If initial location is provided, move to it
+      if (widget.initialLatitude != null && widget.initialLongitude != null) {
+        Future.delayed(Duration(milliseconds: 500), () {
+          _moveToLocation(
+            LatLng(widget.initialLatitude!, widget.initialLongitude!),
+            zoom: 15.0,
+          );
+        });
+      }
     });
   }
 
@@ -94,9 +116,9 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
         Marker(
           markerId: MarkerId('accident_${accident.id}'),
           position: LatLng(accident.latitude, accident.longitude),
-          icon: _getMarkerIcon(accident.severity),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           infoWindow: InfoWindow(
-            title: _severityToMongolian(accident.severity),
+            title: accident.statusMongolian,
             snippet: _formatTime(accident.timestamp),
             onTap: () => _showAccidentDetails(accident),
           ),
@@ -105,17 +127,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     }
 
     setState(() => _markers = newMarkers);
-  }
-
-  BitmapDescriptor _getMarkerIcon(AccidentSeverity severity) {
-    switch (severity) {
-      case AccidentSeverity.severe:
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-      case AccidentSeverity.moderate:
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
-      case AccidentSeverity.minor:
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow);
-    }
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -132,26 +143,54 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     });
   }
 
-  void _moveToLocation(LatLng location) async {
-    if (_mapController != null) {
+  void _moveToLocation(LatLng location, {double? zoom}) async {
+    if (_mapController == null || _isAnimating) return;
+    
+    _isAnimating = true;
+    try {
+      final targetZoom = zoom ?? _currentZoom.clamp(_minZoom, _maxZoom);
+      
       await _mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
-          CameraPosition(target: location, zoom: 15.0),
+          CameraPosition(
+            target: location,
+            zoom: targetZoom,
+            tilt: _currentCameraPosition?.tilt ?? 0.0,
+            bearing: _currentCameraPosition?.bearing ?? 0.0,
+          ),
         ),
       );
+    } finally {
+      _isAnimating = false;
     }
   }
 
   void _moveToCurrentLocation() {
     if (_currentPosition != null) {
-      _moveToLocation(LatLng(_currentPosition!.latitude, _currentPosition!.longitude));
+      _moveToLocation(
+        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+        zoom: 15.0,
+      );
     } else {
       _initializeLocation().then((_) {
         if (_currentPosition != null) {
-          _moveToLocation(LatLng(_currentPosition!.latitude, _currentPosition!.longitude));
+          _moveToLocation(
+            LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            zoom: 15.0,
+          );
         }
       });
     }
+  }
+  
+  void _zoomIn() {
+    if (_mapController == null || _isAnimating) return;
+    _mapController!.animateCamera(CameraUpdate.zoomIn());
+  }
+  
+  void _zoomOut() {
+    if (_mapController == null || _isAnimating) return;
+    _mapController!.animateCamera(CameraUpdate.zoomOut());
   }
 
   void _showAccidentDetails(Accident accident) {
@@ -168,7 +207,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
               Container(
                 padding: EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: _getSeverityColor(accident.severity),
+                  color: Colors.red,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 ),
                 child: Row(
@@ -200,7 +239,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildInfoRow('Хүнд байдал', _severityToMongolian(accident.severity)),
                       _buildInfoRow('Төлөв', _statusToMongolian(accident.status)),
                       _buildInfoRow('Огноо', _formatDate(accident.timestamp)),
                       _buildInfoRow('Цаг', _formatTime(accident.timestamp)),
@@ -221,7 +259,10 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
-                      _moveToLocation(LatLng(accident.latitude, accident.longitude));
+                      _moveToLocation(
+                        LatLng(accident.latitude, accident.longitude),
+                        zoom: 15.0,
+                      );
                     },
                     icon: Icon(Icons.location_on),
                     label: Text('Газрын зураг дээр харах'),
@@ -257,22 +298,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
         ],
       ),
     );
-  }
-
-  Color _getSeverityColor(AccidentSeverity severity) {
-    switch (severity) {
-      case AccidentSeverity.severe: return Colors.red;
-      case AccidentSeverity.moderate: return Colors.orange;
-      case AccidentSeverity.minor: return Colors.yellow[700]!;
-    }
-  }
-
-  String _severityToMongolian(AccidentSeverity severity) {
-    switch (severity) {
-      case AccidentSeverity.severe: return 'Ноцтой';
-      case AccidentSeverity.moderate: return 'Дунд зэрэг';
-      case AccidentSeverity.minor: return 'Хөнгөн';
-    }
   }
 
   String _statusToMongolian(AccidentStatus status) {
@@ -341,7 +366,29 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                 zoomControlsEnabled: false,
                 mapToolbarEnabled: false,
                 compassEnabled: true,
-                onCameraMove: (position) => _currentZoom = position.zoom,
+                minMaxZoomPreference: MinMaxZoomPreference(_minZoom, _maxZoom),
+                // Enable smooth gestures
+                zoomGesturesEnabled: true,
+                scrollGesturesEnabled: true,
+                tiltGesturesEnabled: true,
+                rotateGesturesEnabled: true,
+                // Optimize gesture recognizers for smooth interaction
+                gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+                  Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
+                  Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
+                  Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
+                  Factory<LongPressGestureRecognizer>(() => LongPressGestureRecognizer()),
+                },
+                onCameraMove: (position) {
+                  _currentZoom = position.zoom;
+                  _currentCameraPosition = position;
+                },
+                onCameraMoveStarted: () {
+                  _isAnimating = true;
+                },
+                onCameraIdle: () {
+                  _isAnimating = false;
+                },
               ),
 
               // ✅ COMPACT STATISTICS - Single Row
@@ -370,19 +417,14 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                           Colors.blue,
                         ),
                         _buildCompactStat(
-                          '${provider.accidents.where((a) => a.severity == AccidentSeverity.severe).length}',
-                          'Ноцтой',
-                          Colors.red,
+                          '${provider.accidents.where((a) => a.status == AccidentStatus.confirmed).length}',
+                          'Баталгаажсан',
+                          Colors.green,
                         ),
                         _buildCompactStat(
-                          '${provider.accidents.where((a) => a.severity == AccidentSeverity.moderate).length}',
-                          'Дунд',
+                          '${provider.accidents.where((a) => a.status == AccidentStatus.reported).length}',
+                          'Мэдээлсэн',
                           Colors.orange,
-                        ),
-                        _buildCompactStat(
-                          '${provider.accidents.where((a) => a.severity == AccidentSeverity.minor).length}',
-                          'Хөнгөн',
-                          Colors.yellow[700]!,
                         ),
                       ],
                     ),
@@ -426,6 +468,22 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          FloatingActionButton(
+            heroTag: "zoom_in",
+            onPressed: _zoomIn,
+            mini: true,
+            backgroundColor: Colors.blue[700],
+            child: Icon(Icons.add),
+          ),
+          SizedBox(height: 8),
+          FloatingActionButton(
+            heroTag: "zoom_out",
+            onPressed: _zoomOut,
+            mini: true,
+            backgroundColor: Colors.blue[700],
+            child: Icon(Icons.remove),
+          ),
+          SizedBox(height: 12),
           FloatingActionButton(
             heroTag: "location",
             onPressed: _moveToCurrentLocation,

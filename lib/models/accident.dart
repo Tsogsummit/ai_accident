@@ -1,5 +1,4 @@
 // lib/models/accident.dart - FIXED VERSION
-enum AccidentSeverity { minor, moderate, severe }
 enum AccidentStatus { reported, confirmed, resolved, falseAlarm }
 enum AccidentSource { user, camera }
 
@@ -10,7 +9,6 @@ class Accident {
   final String description;
   final String imageUrl;
   final DateTime timestamp;
-  final AccidentSeverity severity;
   final AccidentStatus status;
   final AccidentSource source;
   final String reportedBy;
@@ -25,7 +23,6 @@ class Accident {
     required this.description,
     this.imageUrl = '',
     required this.timestamp,
-    this.severity = AccidentSeverity.minor,
     this.status = AccidentStatus.reported,
     this.source = AccidentSource.user,
     this.reportedBy = 'Тодорхойгүй',
@@ -37,8 +34,8 @@ class Accident {
   factory Accident.fromJson(Map<String, dynamic> json) {
     return Accident(
       id: json['id']?.toString() ?? '',
-      latitude: (json['latitude'] ?? 0.0).toDouble(),
-      longitude: (json['longitude'] ?? 0.0).toDouble(),
+      latitude: _parseDouble(json['latitude']),
+      longitude: _parseDouble(json['longitude']),
       description: json['description'] ?? '',
       imageUrl: json['image_url'] ?? json['imageUrl'] ?? '',
       timestamp: json['accident_time'] != null
@@ -46,7 +43,6 @@ class Accident {
           : (json['timestamp'] != null
           ? DateTime.parse(json['timestamp'])
           : DateTime.now()),
-      severity: _parseSeverity(json['severity']),
       status: _parseStatus(json['status']),
       source: _parseSource(json['source']),
       reportedBy: json['reported_by'] ?? json['reportedBy'] ?? 'Тодорхойгүй',
@@ -56,27 +52,16 @@ class Accident {
     );
   }
 
-  static AccidentSeverity _parseSeverity(dynamic severity) {
-    if (severity is int) {
-      if (severity >= 0 && severity < AccidentSeverity.values.length) {
-        return AccidentSeverity.values[severity];
-      }
-      return AccidentSeverity.minor;
+  // Helper: Safely parse double from various types (String, int, double, null)
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.parse(value);
     }
-
-    if (severity is String) {
-      switch (severity.toLowerCase()) {
-        case 'severe':
-          return AccidentSeverity.severe;
-        case 'moderate':
-          return AccidentSeverity.moderate;
-        case 'minor':
-        default:
-          return AccidentSeverity.minor;
-      }
-    }
-
-    return AccidentSeverity.minor;
+    // Fallback: try to convert to string then parse
+    return double.parse(value.toString());
   }
 
   static AccidentStatus _parseStatus(dynamic status) {
@@ -126,7 +111,6 @@ class Accident {
       'description': description,
       'image_url': imageUrl,
       'accident_time': timestamp.toIso8601String(),
-      'severity': _severityToString(severity),
       'status': _statusToString(status),
       'source': _sourceToString(source),
       'reported_by': reportedBy,
@@ -134,17 +118,6 @@ class Accident {
       'camera_id': cameraId,
       'verification_count': verificationCount,
     };
-  }
-
-  static String _severityToString(AccidentSeverity severity) {
-    switch (severity) {
-      case AccidentSeverity.severe:
-        return 'severe';
-      case AccidentSeverity.moderate:
-        return 'moderate';
-      case AccidentSeverity.minor:
-        return 'minor';
-    }
   }
 
   static String _statusToString(AccidentStatus status) {
@@ -170,17 +143,6 @@ class Accident {
   }
 
   // Mongolian display names
-  String get severityMongolian {
-    switch (severity) {
-      case AccidentSeverity.severe:
-        return 'Ноцтой';
-      case AccidentSeverity.moderate:
-        return 'Дунд зэрэг';
-      case AccidentSeverity.minor:
-        return 'Хөнгөн';
-    }
-  }
-
   String get statusMongolian {
     switch (status) {
       case AccidentStatus.reported:
@@ -211,7 +173,6 @@ class Accident {
     String? description,
     String? imageUrl,
     DateTime? timestamp,
-    AccidentSeverity? severity,
     AccidentStatus? status,
     AccidentSource? source,
     String? reportedBy,
@@ -226,7 +187,6 @@ class Accident {
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
       timestamp: timestamp ?? this.timestamp,
-      severity: severity ?? this.severity,
       status: status ?? this.status,
       source: source ?? this.source,
       reportedBy: reportedBy ?? this.reportedBy,
