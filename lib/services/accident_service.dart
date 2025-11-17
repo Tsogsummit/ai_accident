@@ -368,12 +368,14 @@ class AccidentService {
     }
   }
 
-  // ✅ Report false accident
+  // ✅ Report false accident (deprecated - use FalseReportService instead)
   Future<bool> reportFalseAccident(
     String accidentId, {
     required String reason,
     String? comment,
   }) async {
+    // This method is kept for backward compatibility
+    // New code should use FalseReportService
     try {
       final response = await _dio.post(
         '${ApiConfig.accidentsEndpoint}/$accidentId/false-report',

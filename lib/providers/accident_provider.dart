@@ -4,6 +4,7 @@ import 'dart:io';
 import '../models/accident.dart';
 import '../services/accident_service.dart';
 import '../services/video_service.dart';
+import '../services/false_report_service.dart';
 
 class AccidentProvider extends ChangeNotifier {
   List<Accident> _accidents = [];
@@ -268,20 +269,26 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Report false accident
-  Future<bool> reportFalseAccident(
-      String accidentId, {
-        required String reason,
-        String? comment,
-      }) async {
+  // Report false accident (using new FalseReportService)
+  Future<bool> reportFalseAccident({
+    required int accidentId,
+    required int userId,
+    required int reasonId,
+    String? comment,
+  }) async {
     try {
       _error = '';
-
-      final success = await _accidentService.reportFalseAccident(
-        accidentId,
-        reason: reason,
+      
+      // Import FalseReportService at the top of the file
+      final falseReportService = FalseReportService();
+      
+      final success = await falseReportService.reportFalseAlarm(
+        accidentId: accidentId,
+        userId: userId,
+        reasonId: reasonId,
         comment: comment,
       );
+      
       if (success) {
         await loadAccidents(forceRefresh: true);
       }

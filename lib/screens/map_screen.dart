@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../providers/accident_provider.dart';
 import '../models/accident.dart';
+import '../widgets/false_report_dialog.dart';
 
 class MapScreen extends StatefulWidget {
   final double? initialLatitude;
@@ -254,22 +255,51 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
               // Actions
               Padding(
                 padding: EdgeInsets.all(16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _moveToLocation(
-                        LatLng(accident.latitude, accident.longitude),
-                        zoom: 15.0,
-                      );
-                    },
-                    icon: Icon(Icons.location_on),
-                    label: Text('Газрын зураг дээр харах'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _moveToLocation(
+                            LatLng(accident.latitude, accident.longitude),
+                            zoom: 15.0,
+                          );
+                        },
+                        icon: Icon(Icons.location_on),
+                        label: Text('Газрын зураг дээр харах'),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
                     ),
-                  ),
+                    SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          final result = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => FalseReportDialog(
+                              accidentId: int.parse(accident.id),
+                            ),
+                          );
+                          if (result == true) {
+                            // Reload accidents to reflect status change
+                            _loadAccidents();
+                          }
+                        },
+                        icon: Icon(Icons.report_problem, color: Colors.orange),
+                        label: Text('Буруу мэдээлэл мэдэгдэх'),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: Colors.orange),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

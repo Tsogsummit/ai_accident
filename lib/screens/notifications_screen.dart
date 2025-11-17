@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/accident_service.dart';
 import '../models/accident.dart';
 import 'map_screen.dart';
+import '../widgets/false_report_dialog.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -679,6 +680,36 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                           ),
                         ),
                       ],
+                    ),
+                    SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final result = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => FalseReportDialog(
+                              accidentId: int.parse(accident.id),
+                            ),
+                          );
+                          if (result == true) {
+                            // Reload notifications to reflect status change
+                            if (mounted) {
+                              setState(() {});
+                            }
+                          }
+                        },
+                        icon: Icon(Icons.report_problem, size: 16, color: Colors.orange),
+                        label: Text(
+                          'Буруу мэдээлэл мэдэгдэх',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          side: BorderSide(color: Colors.orange),
+                          minimumSize: Size(0, 32),
+                        ),
+                      ),
                     ),
                   ],
                 ),

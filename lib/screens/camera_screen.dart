@@ -7,7 +7,6 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:io';
 import '../providers/accident_provider.dart';
-import '../models/accident.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -136,12 +135,57 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _initializeCamera() async {
-    final permission = await Permission.camera.request();
-    if (permission != PermissionStatus.granted) {
+    // Check and request camera permission
+    var cameraStatus = await Permission.camera.status;
+    if (cameraStatus.isDenied) {
+      cameraStatus = await Permission.camera.request();
+    }
+    
+    if (cameraStatus.isPermanentlyDenied) {
+      if (mounted) {
+        setState(() {
+          _permissionDenied = true;
+          _error = 'Камерын зөвшөөрөл татгалзсан. Тохиргооноос зөвшөөрөл өгнө үү.';
+        });
+        // Show dialog to open settings
+        _showPermissionDialog('Камер', 'камерын');
+      }
+      return;
+    }
+    
+    if (!cameraStatus.isGranted) {
       if (mounted) {
         setState(() {
           _permissionDenied = true;
           _error = 'Камерын зөвшөөрөл олгогдоогүй';
+        });
+      }
+      return;
+    }
+
+    // Check and request microphone permission for video recording with audio
+    var microphoneStatus = await Permission.microphone.status;
+    if (microphoneStatus.isDenied) {
+      microphoneStatus = await Permission.microphone.request();
+    }
+    
+    if (microphoneStatus.isPermanentlyDenied) {
+      if (mounted) {
+        setState(() {
+          _permissionDenied = true;
+          _error = 'Микрофоны зөвшөөрөл татгалзсан. Тохиргооноос зөвшөөрөл өгнө үү.';
+        });
+        // Show dialog to open settings
+        _showPermissionDialog('Микрофон', 'микрофоны');
+      }
+      return;
+    }
+    
+    if (!microphoneStatus.isGranted) {
+      if (mounted) {
+        setState(() {
+          _permissionDenied = true;
+          _error = 'Микрофоны зөвшөөрөл олгогдоогүй';
         });
       }
       return;
@@ -507,6 +551,35 @@ class _CameraScreenState extends State<CameraScreen>
               },
               child: Text('Дахин оролдох'),
             ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showPermissionDialog(String permissionName, String permissionNameGenitive) async {
+    if (!mounted) return;
+    
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$permissionName зөвшөөрөл шаардлагатай'),
+        content: Text(
+          '$permissionNameGenitive зөвшөөрөл татгалзсан байна. '
+          'Энэхүү зөвшөөрөлгүйгээр бичлэг хийх боломжгүй. '
+          'Тохиргооноос зөвшөөрөл өгөх үү?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Цуцлах'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await openAppSettings();
+            },
+            child: Text('Тохиргоо нээх'),
+          ),
         ],
       ),
     );

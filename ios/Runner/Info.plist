@@ -3,9 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>NSCameraUsageDescription</key>
-    <string>This app needs camera access for accident detection</string>
+    <string>This app needs camera access to record accident videos for reporting purposes.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>This app needs microphone access for video recording</string>
+    <string>This app needs microphone access to record audio with accident videos.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>This app needs location access to record the location of accidents and show them on the map.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>This app needs location access to record the location of accidents and show them on the map.</string>
     <key>MinimumOSVersion</key>
     <string>17.0</string>
 	<key>CFBundleDevelopmentRegion</key>
@@ -49,7 +53,9 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+    <key>GMSApiKey</key>
+    <string>AIzaSyAwJZ0luHRvQy9F7aIHYxpOXDP2KUFILHY</string>
 </dict>
 </plist>
