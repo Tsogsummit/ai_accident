@@ -15,6 +15,7 @@ class Accident {
   final int? userId;
   final int? cameraId;
   final int verificationCount;
+  final bool userHasReported; // Track if current user has reported false alarm
 
   Accident({
     required this.id,
@@ -29,6 +30,7 @@ class Accident {
     this.userId,
     this.cameraId,
     this.verificationCount = 0,
+    this.userHasReported = false,
   });
 
   factory Accident.fromJson(Map<String, dynamic> json) {
@@ -49,6 +51,7 @@ class Accident {
       userId: json['user_id'],
       cameraId: json['camera_id'],
       verificationCount: json['verification_count'] ?? 0,
+      userHasReported: json['user_has_reported'] ?? json['userHasReported'] ?? false,
     );
   }
 
@@ -117,6 +120,7 @@ class Accident {
       'user_id': userId,
       'camera_id': cameraId,
       'verification_count': verificationCount,
+      'user_has_reported': userHasReported,
     };
   }
 
@@ -179,6 +183,7 @@ class Accident {
     int? userId,
     int? cameraId,
     int? verificationCount,
+    bool? userHasReported,
   }) {
     return Accident(
       id: id ?? this.id,
@@ -193,6 +198,7 @@ class Accident {
       userId: userId ?? this.userId,
       cameraId: cameraId ?? this.cameraId,
       verificationCount: verificationCount ?? this.verificationCount,
+      userHasReported: userHasReported ?? this.userHasReported,
     );
   }
 }

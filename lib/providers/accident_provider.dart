@@ -278,17 +278,19 @@ class AccidentProvider extends ChangeNotifier {
   }) async {
     try {
       _error = '';
-      
+
       // Import FalseReportService at the top of the file
       final falseReportService = FalseReportService();
-      
-      final success = await falseReportService.reportFalseAlarm(
+
+      final result = await falseReportService.reportFalseAlarm(
         accidentId: accidentId,
         userId: userId,
         reasonId: reasonId,
         comment: comment,
       );
-      
+
+      final success = result['success'] == true;
+
       if (success) {
         await loadAccidents(forceRefresh: true);
       }

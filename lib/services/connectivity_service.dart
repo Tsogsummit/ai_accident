@@ -24,14 +24,19 @@ class ConnectivityService {
   Stream<ConnectivityResult> get onConnectivityChanged => _statusController.stream;
   ConnectivityResult get currentStatus => _connectionStatus;
 
-  // Initialize connectivity monitoring
+  // Initialize connectivity monitoring (only once via singleton)
   Future<void> initialize() async {
+    // Skip if already initialized
+    if (_subscription != null) {
+      return;
+    }
+
     try {
       // Get initial status
       _connectionStatus = await _connectivity.checkConnectivity();
       _statusController.add(_connectionStatus);
 
-      // Listen for changes
+      // Listen for changes (only one subscription for entire app)
       _subscription = _connectivity.onConnectivityChanged.listen(
             (ConnectivityResult result) {
           _connectionStatus = result;

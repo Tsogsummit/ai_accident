@@ -5,10 +5,12 @@ import '../services/auth_service.dart';
 
 class FalseReportDialog extends StatefulWidget {
   final int accidentId;
+  final bool userHasReported;
 
   const FalseReportDialog({
     super.key,
     required this.accidentId,
+    this.userHasReported = false,
   });
 
   @override
@@ -28,7 +30,9 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
   @override
   void initState() {
     super.initState();
-    _loadReasons();
+    if (!widget.userHasReported) {
+      _loadReasons();
+    }
   }
 
   @override
@@ -74,23 +78,36 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
     setState(() => _isSubmitting = true);
 
     try {
-      final success = await _falseReportService.reportFalseAlarm(
+      final result = await _falseReportService.reportFalseAlarm(
         accidentId: widget.accidentId,
         userId: user['id'] as int,
         reasonId: _selectedReasonId!,
-        comment: _commentController.text.trim().isEmpty 
-            ? null 
+        comment: _commentController.text.trim().isEmpty
+            ? null
             : _commentController.text.trim(),
       );
 
       if (mounted) {
-        Navigator.pop(context, success);
+        Navigator.pop(context, result['success'] == true);
+
+        String message;
+        Color backgroundColor;
+
+        if (result['success'] == true) {
+          message = 'Буруу мэдээлэл илгээгдлээ';
+          backgroundColor = Colors.green;
+        } else if (result['alreadyReported'] == true) {
+          message = 'Та аль хэдийн буруу мэдээлэл гэж мэдэгдсэн байна';
+          backgroundColor = Colors.orange;
+        } else {
+          message = 'Илгээхэд алдаа гарлаа';
+          backgroundColor = Colors.red;
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success 
-                ? 'Буруу мэдээлэл илгээгдлээ' 
-                : 'Илгээхэд алдаа гарлаа'),
-            backgroundColor: success ? Colors.green : Colors.red,
+            content: Text(message),
+            backgroundColor: backgroundColor,
           ),
         );
       }
@@ -114,74 +131,104 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
         children: [
           Icon(Icons.report_problem, color: Colors.orange),
           SizedBox(width: 8),
-          Text('Буруу мэдээлэл мэдэгдэх'),
+          Flexible(
+            child: Text('Буруу мэдээлэл мэдэгдэх'),
+          ),
         ],
       ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Энэ осол буруу мэдээлэл гэж үзэж байна уу?',
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-            ),
-            SizedBox(height: 16),
-            
-            if (_isLoading)
-              Center(child: CircularProgressIndicator())
-            else if (_reasons.isEmpty)
-              Text('Шалтгаан олдсонгүй', style: TextStyle(color: Colors.red))
-            else
-              ..._reasons.map((reason) => RadioListTile<int>(
-                title: Text(reason['name'] ?? ''),
-                subtitle: reason['description'] != null
-                    ? Text(
-                        reason['description'],
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      )
-                    : null,
-                value: reason['id'] as int,
-                groupValue: _selectedReasonId,
-                onChanged: (value) {
-                  setState(() => _selectedReasonId = value);
-                },
-              )),
-            
-            SizedBox(height: 16),
-            TextField(
-              controller: _commentController,
-              decoration: InputDecoration(
-                labelText: 'Нэмэлт тайлбар (сонголттой)',
-                border: OutlineInputBorder(),
-                hintText: 'Буруу мэдээлэл гэж үзэх шалтгаанаа бичнэ үү...',
-              ),
-              maxLines: 3,
-            ),
-          ],
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.userHasReported)
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Та аль хэдийн энэ ослыг буруу мэдээлэл гэж мэдэгдсэн байна.',
+                          style: TextStyle(fontSize: 14, color: Colors.orange[900]),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                Text(
+                  'Энэ осол буруу мэдээлэл гэж үзэж байна уу?',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                ),
+                SizedBox(height: 16),
+              ],
+
+              if (!widget.userHasReported && _isLoading)
+                Center(child: CircularProgressIndicator())
+              else if (!widget.userHasReported && _reasons.isEmpty)
+                Text('Шалтгаан олдсонгүй', style: TextStyle(color: Colors.red))
+              else if (!widget.userHasReported) ...[
+                ..._reasons.map((reason) => RadioListTile<int>(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(reason['name'] ?? ''),
+                  subtitle: reason['description'] != null
+                      ? Text(
+                          reason['description'],
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        )
+                      : null,
+                  value: reason['id'] as int,
+                  groupValue: _selectedReasonId,
+                  onChanged: (value) {
+                    setState(() => _selectedReasonId = value);
+                  },
+                )),
+                SizedBox(height: 16),
+                TextField(
+                  controller: _commentController,
+                  decoration: InputDecoration(
+                    labelText: 'Нэмэлт тайлбар (сонголттой)',
+                    border: OutlineInputBorder(),
+                    hintText: 'Буруу мэдээлэл гэж үзэх шалтгаанаа бичнэ үү...',
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
       actions: [
         TextButton(
           onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-          child: Text('Цуцлах'),
+          child: Text(widget.userHasReported ? 'Хаах' : 'Цуцлах'),
         ),
-        ElevatedButton(
-          onPressed: _isSubmitting ? null : _submitReport,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
+        if (!widget.userHasReported)
+          ElevatedButton(
+            onPressed: _isSubmitting ? null : _submitReport,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+            ),
+            child: _isSubmitting
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text('Илгээх'),
           ),
-          child: _isSubmitting
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : Text('Илгээх'),
-        ),
       ],
     );
   }

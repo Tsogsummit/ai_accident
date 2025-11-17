@@ -46,7 +46,7 @@ class FalseReportService {
   }
 
   // Report false alarm
-  Future<bool> reportFalseAlarm({
+  Future<Map<String, dynamic>> reportFalseAlarm({
     required int accidentId,
     required int userId,
     required int reasonId,
@@ -68,16 +68,47 @@ class FalseReportService {
       if (response.data is Map && response.data['success'] == true) {
         final falseReportCount = response.data['falseReportCount'] ?? 0;
         print('✅ False report submitted. Total reports: $falseReportCount');
-        return true;
+        return {
+          'success': true,
+          'falseReportCount': falseReportCount,
+          'alreadyReported': false,
+        };
       }
 
-      return false;
+      // Check if already reported
+      if (response.data is Map && response.data['alreadyReported'] == true) {
+        print('⚠️ User has already reported this accident');
+        return {
+          'success': false,
+          'alreadyReported': true,
+          'message': response.data['message'] ?? 'Already reported',
+        };
+      }
+
+      return {
+        'success': false,
+        'alreadyReported': false,
+        'message': response.data?['message'] ?? 'Unknown error',
+      };
     } on DioException catch (e) {
       print('❌ Report false alarm error: ${e.message}');
       if (e.response != null) {
         print('Response: ${e.response?.data}');
+
+        // Check if backend says already reported
+        if (e.response?.data is Map && e.response?.data['alreadyReported'] == true) {
+          return {
+            'success': false,
+            'alreadyReported': true,
+            'message': e.response?.data['message'] ?? 'Already reported',
+          };
+        }
       }
-      return false;
+      return {
+        'success': false,
+        'alreadyReported': false,
+        'message': e.message ?? 'Network error',
+      };
     }
   }
 }

@@ -233,9 +233,14 @@ class _CameraScreenState extends State<CameraScreen>
         _recordingSeconds = 0;
       });
 
+      // Update UI less frequently to reduce message queue spam
       _recordingTimer = Timer.periodic(Duration(seconds: 1), (timer) {
         if (mounted && _isRecording) {
-          setState(() => _recordingSeconds++);
+          _recordingSeconds++;
+          // Only update UI every 5 seconds to reduce setState calls
+          if (_recordingSeconds % 5 == 0) {
+            setState(() {});
+          }
         } else {
           timer.cancel();
         }

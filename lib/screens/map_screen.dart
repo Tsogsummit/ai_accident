@@ -36,6 +36,9 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   CameraPosition? _currentCameraPosition;
   bool _isAnimating = false;
 
+  // Track last updated accidents to prevent unnecessary marker updates
+  List<Accident>? _lastAccidents;
+
   static const LatLng _defaultLocation = LatLng(47.9077, 106.8832); // Ulaanbaatar
   static const double _minZoom = 5.0;
   static const double _maxZoom = 20.0;
@@ -107,6 +110,15 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     });
   }
 
+  bool _shouldUpdateMarkers(List<Accident> accidents) {
+    // Check if accidents list has changed
+    if (_lastAccidents == null) return true;
+    if (_lastAccidents!.length != accidents.length) return true;
+
+    // Check if any accident IDs are different
+    return !_lastAccidents!.every((a) => accidents.any((b) => a.id == b.id));
+  }
+
   void _updateMarkers(List<Accident> accidents) {
     if (!_isMapReady) return;
 
@@ -127,7 +139,10 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
       );
     }
 
-    setState(() => _markers = newMarkers);
+    setState(() {
+      _markers = newMarkers;
+      _lastAccidents = accidents;
+    });
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -279,23 +294,37 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          Navigator.pop(context);
+                          final navigator = Navigator.of(context);
+                          final provider = Provider.of<AccidentProvider>(context, listen: false);
+
+                          navigator.pop();
                           final result = await showDialog<bool>(
                             context: context,
                             builder: (context) => FalseReportDialog(
                               accidentId: int.parse(accident.id),
+                              userHasReported: accident.userHasReported,
                             ),
                           );
                           if (result == true) {
-                            // Reload accidents to reflect status change
-                            _loadAccidents();
+                            // Force reload accidents from backend to reflect status change
+                            await provider.loadAccidents(forceRefresh: true);
+                            if (mounted && _isMapReady) {
+                              _updateMarkers(provider.accidents);
+                            }
                           }
                         },
-                        icon: Icon(Icons.report_problem, color: Colors.orange),
-                        label: Text('Буруу мэдээлэл мэдэгдэх'),
+                        icon: Icon(
+                          accident.userHasReported ? Icons.check_circle : Icons.report_problem,
+                          color: accident.userHasReported ? Colors.grey : Colors.orange,
+                        ),
+                        label: Text(
+                          accident.userHasReported ? 'Мэдэгдсэн' : 'Буруу мэдээлэл мэдэгдэх',
+                        ),
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(color: Colors.orange),
+                          side: BorderSide(
+                            color: accident.userHasReported ? Colors.grey : Colors.orange,
+                          ),
                         ),
                       ),
                     ),
@@ -371,11 +400,15 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
       ),
       body: Consumer<AccidentProvider>(
         builder: (context, provider, child) {
+          // Schedule marker update after build completes, only if data changed
           if (!provider.isLoading &&
               provider.accidents.isNotEmpty &&
-              _isMapReady) {
+              _isMapReady &&
+              _shouldUpdateMarkers(provider.accidents)) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _updateMarkers(provider.accidents);
+              if (mounted) {
+                _updateMarkers(provider.accidents);
+              }
             });
           }
 

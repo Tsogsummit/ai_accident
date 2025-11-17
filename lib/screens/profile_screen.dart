@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';
 import '../config/api_config.dart';
 import '../services/auth_service.dart';
-import 'api_test_screen.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -163,16 +162,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.bug_report),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => ApiTestScreen()),
-              );
-            },
-            tooltip: 'API Тестлэх',
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadUserData,
             tooltip: 'Шинэчлэх',
@@ -314,24 +303,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _buildApiInfoRow('IP хаяг', ApiConfig.localIP),
                       _buildApiInfoRow('Auth', ApiConfig.authServiceUrl),
                       _buildApiInfoRow('Accident', ApiConfig.accidentServiceUrl),
-                      SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => ApiTestScreen()),
-                            );
-                          },
-                          icon: Icon(Icons.bug_report),
-                          label: Text('API Тестлэх'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),

@@ -690,23 +690,30 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                             context: context,
                             builder: (context) => FalseReportDialog(
                               accidentId: int.parse(accident.id),
+                              userHasReported: accident.userHasReported,
                             ),
                           );
                           if (result == true) {
                             // Reload notifications to reflect status change
                             if (mounted) {
-                              setState(() {});
+                              _loadNotifications();
                             }
                           }
                         },
-                        icon: Icon(Icons.report_problem, size: 16, color: Colors.orange),
+                        icon: Icon(
+                          accident.userHasReported ? Icons.check_circle : Icons.report_problem,
+                          size: 16,
+                          color: accident.userHasReported ? Colors.grey : Colors.orange,
+                        ),
                         label: Text(
-                          'Буруу мэдээлэл мэдэгдэх',
+                          accident.userHasReported ? 'Мэдэгдсэн' : 'Буруу мэдээлэл мэдэгдэх',
                           style: TextStyle(fontSize: 12),
                         ),
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                          side: BorderSide(color: Colors.orange),
+                          side: BorderSide(
+                            color: accident.userHasReported ? Colors.grey : Colors.orange,
+                          ),
                           minimumSize: Size(0, 32),
                         ),
                       ),
