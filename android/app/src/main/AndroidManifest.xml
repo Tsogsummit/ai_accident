@@ -9,9 +9,6 @@
         android:label="ai_accident"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyAwJZ0luHRvQy9F7aIHYxpOXDP2KUFILHY" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -1,47 +1,23 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
-import '../providers/accident_provider.dart';
+import 'package:provider/provider.dart';
+
 import '../models/accident.dart';
+import '../providers/accident_provider.dart';
 import '../widgets/false_report_dialog.dart';
 
 class MapScreen extends StatefulWidget {
-  final double? initialLatitude;
-  final double? initialLongitude;
-  
-  const MapScreen({
-    super.key,
-    this.initialLatitude,
-    this.initialLongitude,
-  });
+  const MapScreen({super.key});
 
   @override
-  _MapScreenState createState() => _MapScreenState();
+  State<MapScreen> createState() => _MapScreenState();
 }
 
 class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixin {
-  GoogleMapController? _mapController;
-  final Completer<GoogleMapController> _controller = Completer();
-
   Position? _currentPosition;
-  StreamSubscription<Position>? _positionStreamSubscription;
-
-  Set<Marker> _markers = {};
-  bool _isMapReady = false;
-  double _currentZoom = 12.0;
-  CameraPosition? _currentCameraPosition;
-  bool _isAnimating = false;
-
-  // Track last updated accidents to prevent unnecessary marker updates
-  List<Accident>? _lastAccidents;
-
-  static const LatLng _defaultLocation = LatLng(47.9077, 106.8832); // Ulaanbaatar
-  static const double _minZoom = 5.0;
-  static const double _maxZoom = 20.0;
+  bool _isLoadingLocation = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -50,163 +26,47 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   void initState() {
     super.initState();
     _initializeLocation();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadAccidents();
-      // If initial location is provided, move to it
-      if (widget.initialLatitude != null && widget.initialLongitude != null) {
-        Future.delayed(Duration(milliseconds: 500), () {
-          _moveToLocation(
-            LatLng(widget.initialLatitude!, widget.initialLongitude!),
-            zoom: 15.0,
-          );
-        });
-      }
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAccidents());
   }
 
   @override
   void dispose() {
-    _positionStreamSubscription?.cancel();
-    _mapController?.dispose();
     super.dispose();
   }
 
   Future<void> _initializeLocation() async {
+    setState(() => _isLoadingLocation = true);
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return;
 
-      LocationPermission permission = await Geolocator.checkPermission();
+      var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-      );
-
-      if (mounted) {
-        setState(() => _currentPosition = position);
-        if (_isMapReady) {
-          _moveToLocation(LatLng(position.latitude, position.longitude));
-        }
-      }
+      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
+      if (mounted) setState(() => _currentPosition = position);
     } catch (e) {
-      print('Location error: $e');
-    }
-  }
-
-  void _loadAccidents() {
-    final provider = Provider.of<AccidentProvider>(context, listen: false);
-    provider.loadAccidents().then((_) {
-      if (mounted && _isMapReady) {
-        _updateMarkers(provider.accidents);
-      }
-    });
-  }
-
-  bool _shouldUpdateMarkers(List<Accident> accidents) {
-    // Check if accidents list has changed
-    if (_lastAccidents == null) return true;
-    if (_lastAccidents!.length != accidents.length) return true;
-
-    // Check if any accident IDs are different
-    return !_lastAccidents!.every((a) => accidents.any((b) => a.id == b.id));
-  }
-
-  void _updateMarkers(List<Accident> accidents) {
-    if (!_isMapReady) return;
-
-    Set<Marker> newMarkers = {};
-
-    for (final accident in accidents) {
-      newMarkers.add(
-        Marker(
-          markerId: MarkerId('accident_${accident.id}'),
-          position: LatLng(accident.latitude, accident.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          infoWindow: InfoWindow(
-            title: accident.statusMongolian,
-            snippet: _formatTime(accident.timestamp),
-            onTap: () => _showAccidentDetails(accident),
-          ),
-        ),
-      );
-    }
-
-    setState(() {
-      _markers = newMarkers;
-      _lastAccidents = accidents;
-    });
-  }
-
-  void _onMapCreated(GoogleMapController controller) {
-    _controller.complete(controller);
-    _mapController = controller;
-    _isMapReady = true;
-
-    if (_currentPosition != null) {
-      _moveToLocation(LatLng(_currentPosition!.latitude, _currentPosition!.longitude));
-    }
-
-    Timer(Duration(milliseconds: 300), () {
-      if (mounted) _loadAccidents();
-    });
-  }
-
-  void _moveToLocation(LatLng location, {double? zoom}) async {
-    if (_mapController == null || _isAnimating) return;
-    
-    _isAnimating = true;
-    try {
-      final targetZoom = zoom ?? _currentZoom.clamp(_minZoom, _maxZoom);
-      
-      await _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: location,
-            zoom: targetZoom,
-            tilt: _currentCameraPosition?.tilt ?? 0.0,
-            bearing: _currentCameraPosition?.bearing ?? 0.0,
-          ),
-        ),
-      );
+      debugPrint('Location error: $e');
     } finally {
-      _isAnimating = false;
+      if (mounted) setState(() => _isLoadingLocation = false);
     }
   }
 
-  void _moveToCurrentLocation() {
-    if (_currentPosition != null) {
-      _moveToLocation(
-        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-        zoom: 15.0,
-      );
-    } else {
-      _initializeLocation().then((_) {
-        if (_currentPosition != null) {
-          _moveToLocation(
-            LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-            zoom: 15.0,
-          );
-        }
-      });
-    }
+  Future<void> _loadAccidents({bool forceRefresh = false}) async {
+    final provider = Provider.of<AccidentProvider>(context, listen: false);
+    await provider.loadAccidents(forceRefresh: forceRefresh);
   }
-  
-  void _zoomIn() {
-    if (_mapController == null || _isAnimating) return;
-    _mapController!.animateCamera(CameraUpdate.zoomIn());
-  }
-  
-  void _zoomOut() {
-    if (_mapController == null || _isAnimating) return;
-    _mapController!.animateCamera(CameraUpdate.zoomOut());
+
+  Future<void> _handleRefresh() async {
+    await Future.wait([
+      _initializeLocation(),
+      _loadAccidents(forceRefresh: true),
+    ]);
   }
 
   void _showAccidentDetails(Accident accident) {
@@ -219,21 +79,20 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
-                padding: EdgeInsets.all(20),
-                decoration: BoxDecoration(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
                   color: Colors.red,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning, color: Colors.white),
-                    SizedBox(width: 12),
+                    const Icon(Icons.warning, color: Colors.white),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Осол #${accident.id}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -242,16 +101,14 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: Icon(Icons.close, color: Colors.white),
+                      icon: const Icon(Icons.close, color: Colors.white),
                     ),
                   ],
                 ),
               ),
-
-              // Content
               Flexible(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -266,37 +123,16 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                   ),
                 ),
               ),
-
-              // Actions
               Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _moveToLocation(
-                            LatLng(accident.latitude, accident.longitude),
-                            zoom: 15.0,
-                          );
-                        },
-                        icon: Icon(Icons.location_on),
-                        label: Text('Газрын зураг дээр харах'),
-                        style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () async {
                           final navigator = Navigator.of(context);
                           final provider = Provider.of<AccidentProvider>(context, listen: false);
-
                           navigator.pop();
                           final result = await showDialog<bool>(
                             context: context,
@@ -306,26 +142,22 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                             ),
                           );
                           if (result == true) {
-                            // Force reload accidents from backend to reflect status change
                             await provider.loadAccidents(forceRefresh: true);
-                            if (mounted && _isMapReady) {
-                              _updateMarkers(provider.accidents);
-                            }
                           }
                         },
                         icon: Icon(
                           accident.userHasReported ? Icons.check_circle : Icons.report_problem,
                           color: accident.userHasReported ? Colors.grey : Colors.orange,
                         ),
-                        label: Text(
-                          accident.userHasReported ? 'Мэдэгдсэн' : 'Буруу мэдээлэл мэдэгдэх',
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(
-                            color: accident.userHasReported ? Colors.grey : Colors.orange,
-                          ),
-                        ),
+                        label: Text(accident.userHasReported ? 'Мэдэгдсэн' : 'Буруу мэдээлэл мэдэгдэх'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Хаах'),
                       ),
                     ),
                   ],
@@ -340,20 +172,18 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 80,
+            width: 90,
             child: Text(
               '$label:',
               style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[700]),
             ),
           ),
-          Expanded(
-            child: Text(value, style: TextStyle(fontSize: 14)),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );
@@ -361,19 +191,167 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
 
   String _statusToMongolian(AccidentStatus status) {
     switch (status) {
-      case AccidentStatus.reported: return 'Мэдээлсэн';
-      case AccidentStatus.confirmed: return 'Баталгаажсан';
-      case AccidentStatus.resolved: return 'Шийдэгдсэн';
-      case AccidentStatus.falseAlarm: return 'Худал';
+      case AccidentStatus.reported:
+        return 'Мэдээлсэн';
+      case AccidentStatus.confirmed:
+        return 'Баталгаажсан';
+      case AccidentStatus.resolved:
+        return 'Шийдэгдсэн';
+      case AccidentStatus.falseAlarm:
+        return 'Худал';
     }
   }
 
-  String _formatDate(DateTime dateTime) {
-    return '${dateTime.year}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.day.toString().padLeft(2, '0')}';
+  String _formatDate(DateTime dateTime) =>
+      '${dateTime.year}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.day.toString().padLeft(2, '0')}';
+
+  String _formatTime(DateTime dateTime) =>
+      '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+
+  Widget _buildNoticeCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.map_outlined, color: Colors.blue),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Google Maps Integration-ыг системээс бүрэн салгасан тул газрын зураг харагдахгүй. '
+                'Доорх жагсаалтаас ослын байршил, мэдээллийг үзнэ үү.',
+                style: TextStyle(fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  String _formatTime(DateTime dateTime) {
-    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  Widget _buildStatsCard(AccidentProvider provider) {
+    final total = provider.accidents.length;
+    final confirmed = provider.accidents.where((a) => a.status == AccidentStatus.confirmed).length;
+    final reported = provider.accidents.where((a) => a.status == AccidentStatus.reported).length;
+    final resolved = provider.accidents.where((a) => a.status == AccidentStatus.resolved).length;
+
+    Widget stat(String label, String value, Color color) {
+      return Expanded(
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+            ),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          ],
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            stat('Нийт', '$total', Colors.black87),
+            stat('Баталгаажсан', '$confirmed', Colors.green),
+            stat('Мэдээлсэн', '$reported', Colors.orange),
+            stat('Шийдэгдсэн', '$resolved', Colors.blue),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccidentCard(Accident accident) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: _statusColor(accident.status)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Осол #${accident.id}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                Text(
+                  _statusToMongolian(accident.status),
+                  style: TextStyle(color: _statusColor(accident.status), fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildInfoRow('Огноо', '${_formatDate(accident.timestamp)} ${_formatTime(accident.timestamp)}'),
+            _buildInfoRow('Байршил', '${accident.latitude.toStringAsFixed(6)}, ${accident.longitude.toStringAsFixed(6)}'),
+            _buildInfoRow('Мэдээлсэн', accident.reportedBy),
+            if (accident.description.isNotEmpty)
+              _buildInfoRow('Тайлбар', accident.description),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _showAccidentDetails(accident),
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Дэлгэрэнгүй'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _statusColor(AccidentStatus status) {
+    switch (status) {
+      case AccidentStatus.reported:
+        return Colors.orange;
+      case AccidentStatus.confirmed:
+        return Colors.red;
+      case AccidentStatus.resolved:
+        return Colors.green;
+      case AccidentStatus.falseAlarm:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 60),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.map_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            const Text(
+              'Одоогоор ослын мэдээлэл алга',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Шинэ мэдээлэл ирэхэд жагсаалт автоматаар шинэчлэгдэнэ.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -382,214 +360,89 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Замын осол'),
+        title: const Text('Осол, байршлын түүх'),
         backgroundColor: Colors.blue,
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: Icon(Icons.my_location),
-            onPressed: _moveToCurrentLocation,
-            tooltip: 'Миний байршил',
+            icon: const Icon(Icons.my_location),
+            onPressed: _initializeLocation,
+            tooltip: 'Байршлыг шинэчлэх',
           ),
           IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _loadAccidents,
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _loadAccidents(forceRefresh: true),
             tooltip: 'Шинэчлэх',
           ),
         ],
       ),
       body: Consumer<AccidentProvider>(
         builder: (context, provider, child) {
-          // Schedule marker update after build completes, only if data changed
-          if (!provider.isLoading &&
-              provider.accidents.isNotEmpty &&
-              _isMapReady &&
-              _shouldUpdateMarkers(provider.accidents)) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                _updateMarkers(provider.accidents);
-              }
-            });
+          if (provider.isLoading && provider.accidents.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
           }
 
-          return Stack(
-            children: [
-              // Google Map
-              GoogleMap(
-                onMapCreated: _onMapCreated,
-                initialCameraPosition: CameraPosition(
-                  target: _currentPosition != null
-                      ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-                      : _defaultLocation,
-                  zoom: 12.0,
-                ),
-                markers: _markers,
-                myLocationEnabled: true,
-                myLocationButtonEnabled: false,
-                zoomControlsEnabled: false,
-                mapToolbarEnabled: false,
-                compassEnabled: true,
-                minMaxZoomPreference: MinMaxZoomPreference(_minZoom, _maxZoom),
-                // Enable smooth gestures
-                zoomGesturesEnabled: true,
-                scrollGesturesEnabled: true,
-                tiltGesturesEnabled: true,
-                rotateGesturesEnabled: true,
-                // Optimize gesture recognizers for smooth interaction
-                gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-                  Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
-                  Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
-                  Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-                  Factory<LongPressGestureRecognizer>(() => LongPressGestureRecognizer()),
-                },
-                onCameraMove: (position) {
-                  _currentZoom = position.zoom;
-                  _currentCameraPosition = position;
-                },
-                onCameraMoveStarted: () {
-                  _isAnimating = true;
-                },
-                onCameraIdle: () {
-                  _isAnimating = false;
-                },
-              ),
+          final children = <Widget>[
+            _buildNoticeCard(),
+            const SizedBox(height: 12),
+            _buildStatsCard(provider),
+            const SizedBox(height: 12),
+          ];
 
-              // ✅ COMPACT STATISTICS - Single Row
-              Positioned(
-                top: 12,
-                left: 12,
-                right: 12,
-                child: Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildCompactStat(
-                          '${provider.accidents.length}',
-                          'Нийт',
-                          Colors.grey[700]!,
-                        ),
-                        _buildCompactStat(
-                          '${_markers.length}',
-                          'Харагдаж буй',
-                          Colors.blue,
-                        ),
-                        _buildCompactStat(
-                          '${provider.accidents.where((a) => a.status == AccidentStatus.confirmed).length}',
-                          'Баталгаажсан',
-                          Colors.green,
-                        ),
-                        _buildCompactStat(
-                          '${provider.accidents.where((a) => a.status == AccidentStatus.reported).length}',
-                          'Мэдээлсэн',
-                          Colors.orange,
-                        ),
-                      ],
+          if (_isLoadingLocation && _currentPosition == null) {
+            children.add(const Card(
+              elevation: 1,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  ),
+                    SizedBox(width: 12),
+                    Expanded(child: Text('Байршлын мэдээлэл шинэчилж байна...')),
+                  ],
                 ),
               ),
-
-              // Loading overlay
-              if (provider.isLoading)
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.black12,
-                    child: Center(
-                      child: Card(
-                        elevation: 8,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CircularProgressIndicator(strokeWidth: 3),
-                              SizedBox(height: 16),
-                              Text(
-                                'Осол ачааллаж байна...',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+            ));
+            children.add(const SizedBox(height: 12));
+          } else if (_currentPosition != null) {
+            children.add(Card(
+              elevation: 1,
+              child: ListTile(
+                leading: const Icon(Icons.near_me, color: Colors.blue),
+                title: const Text('Таны байршил'),
+                subtitle: Text(
+                  '${_currentPosition!.latitude.toStringAsFixed(6)}, '
+                  '${_currentPosition!.longitude.toStringAsFixed(6)}',
                 ),
-            ],
+              ),
+            ));
+            children.add(const SizedBox(height: 12));
+          }
+
+          if (provider.accidents.isEmpty) {
+            children.add(_buildEmptyState());
+          } else {
+            for (final accident in provider.accidents) {
+              children
+                ..add(_buildAccidentCard(accident))
+                ..add(const SizedBox(height: 12));
+            }
+          }
+
+          return RefreshIndicator(
+            onRefresh: _handleRefresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: children,
+            ),
           );
         },
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: "zoom_in",
-            onPressed: _zoomIn,
-            mini: true,
-            backgroundColor: Colors.blue[700],
-            child: Icon(Icons.add),
-          ),
-          SizedBox(height: 8),
-          FloatingActionButton(
-            heroTag: "zoom_out",
-            onPressed: _zoomOut,
-            mini: true,
-            backgroundColor: Colors.blue[700],
-            child: Icon(Icons.remove),
-          ),
-          SizedBox(height: 12),
-          FloatingActionButton(
-            heroTag: "location",
-            onPressed: _moveToCurrentLocation,
-            mini: true,
-            backgroundColor: Colors.blue,
-            child: Icon(Icons.my_location),
-          ),
-          SizedBox(height: 12),
-          FloatingActionButton(
-            heroTag: "refresh",
-            onPressed: _loadAccidents,
-            backgroundColor: Colors.green,
-            child: Icon(Icons.refresh),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ✅ COMPACT STAT WIDGET - Smaller and cleaner
-  Widget _buildCompactStat(String value, String label, Color color) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey[600],
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
     );
   }
 }

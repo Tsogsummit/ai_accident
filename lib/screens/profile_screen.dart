@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';
-import '../config/api_config.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 
@@ -272,42 +271,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 30),
 
-              // API Connection Status Card
-              Card(
-                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                elevation: 2,
-                color: Colors.blue.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.cloud, color: Colors.blue, size: 24),
-                          SizedBox(width: 12),
-                          Text(
-                            'API Холболт',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Divider(height: 16),
-                      _buildApiInfoRow('Горим', ApiConfig.connectionMode),
-                      _buildApiInfoRow('IP хаяг', ApiConfig.localIP),
-                      _buildApiInfoRow('Auth', ApiConfig.authServiceUrl),
-                      _buildApiInfoRow('Accident', ApiConfig.accidentServiceUrl),
-                    ],
-                  ),
-                ),
-              ),
-
               // Statistics Card
               Card(
                 margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -384,32 +347,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildApiInfoRow(String label, String value) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 70,
-            child: Text(
-              '$label:',
-              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ),
-        ],
-      ),
     );
   }
 

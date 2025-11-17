@@ -16,7 +16,6 @@
         "flutter",
         "flutter_secure_storage",
         "geolocator",
-        "google_maps_flutter",
         "http",
         "image_picker",
         "intl",
@@ -218,17 +217,6 @@
       ]
     },
     {
-      "name": "google_maps_flutter",
-      "version": "2.13.1",
-      "dependencies": [
-        "flutter",
-        "google_maps_flutter_android",
-        "google_maps_flutter_ios",
-        "google_maps_flutter_platform_interface",
-        "google_maps_flutter_web"
-      ]
-    },
-    {
       "name": "flutter",
       "version": "0.0.0",
       "dependencies": [
@@ -267,7 +255,7 @@
     },
     {
       "name": "meta",
-      "version": "1.16.0",
+      "version": "1.17.0",
       "dependencies": []
     },
     {
@@ -329,7 +317,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.6",
+      "version": "0.7.7",
       "dependencies": [
         "async",
         "boolean_selector",
@@ -762,49 +750,6 @@
       ]
     },
     {
-      "name": "google_maps_flutter_web",
-      "version": "0.5.14+2",
-      "dependencies": [
-        "collection",
-        "flutter",
-        "flutter_web_plugins",
-        "google_maps",
-        "google_maps_flutter_platform_interface",
-        "sanitize_html",
-        "stream_transform",
-        "web"
-      ]
-    },
-    {
-      "name": "google_maps_flutter_platform_interface",
-      "version": "2.14.0",
-      "dependencies": [
-        "collection",
-        "flutter",
-        "plugin_platform_interface",
-        "stream_transform"
-      ]
-    },
-    {
-      "name": "google_maps_flutter_ios",
-      "version": "2.15.5",
-      "dependencies": [
-        "flutter",
-        "google_maps_flutter_platform_interface",
-        "stream_transform"
-      ]
-    },
-    {
-      "name": "google_maps_flutter_android",
-      "version": "2.18.2",
-      "dependencies": [
-        "flutter",
-        "flutter_plugin_android_lifecycle",
-        "google_maps_flutter_platform_interface",
-        "stream_transform"
-      ]
-    },
-    {
       "name": "sky_engine",
       "version": "0.0.0",
       "dependencies": []
@@ -1073,22 +1018,6 @@
       "name": "stream_transform",
       "version": "2.1.1",
       "dependencies": []
-    },
-    {
-      "name": "sanitize_html",
-      "version": "2.1.0",
-      "dependencies": [
-        "html",
-        "meta"
-      ]
-    },
-    {
-      "name": "google_maps",
-      "version": "8.2.0",
-      "dependencies": [
-        "meta",
-        "web"
-      ]
     },
     {
       "name": "win32",
