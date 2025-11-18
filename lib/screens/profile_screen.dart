@@ -1,4 +1,4 @@
-// lib/screens/profile_screen.dart - ЗАСВАРЛАСАН ХУВИЛБАР
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';
@@ -25,7 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadUserData();
   }
 
-  // ✅ Хэрэглэгчийн мэдээлэл ачаалах
+  
   Future<void> _loadUserData() async {
     setState(() {
       _isLoading = true;
@@ -33,7 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      // Эхлээд локал хадгалсан мэдээллийг авах
+      
       final localUser = await _authService.getUser();
       
       if (localUser != null) {
@@ -43,7 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
 
-      // Дараа нь серверээс шинэ мэдээлэл татах
+      
       final serverUser = await _authService.getProfile();
       
       if (serverUser != null) {
@@ -68,7 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // ✅ ГАРАХ функц
+  
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -93,7 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirmed == true) {
-      // Loading indicator
+      
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -115,21 +115,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       try {
-        // Logout хийх
+        
         await _authService.logout();
         
         if (!mounted) return;
         
-        // Loading dialog хаах
+        
         Navigator.pop(context);
         
-        // Login screen руу шилжих
+        
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,
         );
         
-        // Success message
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ Амжилттай гарлаа'),
@@ -139,7 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } catch (e) {
         if (!mounted) return;
         
-        // Loading dialog хаах
+        
         Navigator.pop(context);
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -222,7 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               const SizedBox(height: 20),
 
-              // Profile Avatar
+              
               CircleAvatar(
                 radius: 50,
                 backgroundColor: Colors.blue,
@@ -233,14 +233,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Name
+              
               Text(
                 _userData?['name'] ?? 'Хэрэглэгч',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
 
-              // Phone
+              
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -253,7 +253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
               
-              // Email
+              
               if (_userData?['email'] != null) ...[
                 SizedBox(height: 4),
                 Row(
@@ -271,7 +271,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 30),
 
-              // Statistics Card
+              
               Card(
                 margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 elevation: 2,
@@ -324,7 +324,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 30),
 
-              // Logout Button
+              
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ElevatedButton.icon(

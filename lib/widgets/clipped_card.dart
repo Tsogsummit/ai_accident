@@ -1,5 +1,5 @@
-// lib/widgets/clipped_card.dart
-// Хэрэглэхэд хялбар, clipBehavior-тэй Card widget
+
+
 
 import 'package:flutter/material.dart';
 
@@ -48,65 +48,16 @@ class ClippedCard extends StatelessWidget {
   }
 }
 
-// ============================================
-// АШИГЛАХ ЖИШЭЭ
-// ============================================
 
-// Example 1: Энгийн card
-/*
-ClippedCard(
-  child: Padding(
-    padding: EdgeInsets.all(16),
-    child: Text('Миний агуулга'),
-  ),
-)
-*/
 
-// Example 2: Зургатай card
-/*
-ClippedCard(
-  child: Column(
-    children: [
-      Image.network('https://...'),
-      Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('Гарчиг'),
-      ),
-    ],
-  ),
-)
-*/
 
-// Example 3: Товчлуурын үүрэгтэй card
-/*
-ClippedCard(
-  onTap: () {
-    print('Card дарагдлаа');
-  },
-  child: ListTile(
-    leading: Icon(Icons.person),
-    title: Text('Хэрэглэгч'),
-    subtitle: Text('user@example.com'),
-  ),
-)
-*/
 
-// Example 4: Өөрчлөгдсөн elevation ба өнгө
-/*
-ClippedCard(
-  elevation: 4,
-  color: Colors.blue.shade50,
-  child: Padding(
-    padding: EdgeInsets.all(16),
-    child: Text('Тусгай card'),
-  ),
-)
-*/
 
-// Example 5: Өөр clipBehavior
-/*
-ClippedCard(
-  clipBehavior: Clip.hardEdge,
-  child: // your content
-)
-*/
+
+
+
+
+
+
+
+

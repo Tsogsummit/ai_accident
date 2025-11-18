@@ -1,4 +1,4 @@
-// lib/services/auth_service.dart - ЗАСВАРЛАСАН
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,7 +7,7 @@ import '../config/api_config.dart';
 class AuthService {
   static String get baseUrl => ApiConfig.authServiceUrl;
 
-  // ✅ Токен хадгалах
+  
   Future<void> saveTokens(String accessToken, String refreshToken) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', accessToken);
@@ -15,26 +15,26 @@ class AuthService {
     print('✅ Токен хадгалагдлаа');
   }
 
-  // ✅ Токен авах
+  
   Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('access_token');
   }
 
-  // ✅ Refresh token авах
+  
   Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('refresh_token');
   }
 
-  // ✅ Хэрэглэгчийн мэдээлэл хадгалах
+  
   Future<void> saveUser(Map<String, dynamic> user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user', jsonEncode(user));
     print('✅ Хэрэглэгчийн мэдээлэл хадгалагдлаа: ${user['name']}');
   }
 
-  // ✅ Хэрэглэгчийн мэдээлэл авах
+  
   Future<Map<String, dynamic>?> getUser() async {
     final prefs = await SharedPreferences.getInstance();
     final userStr = prefs.getString('user');
@@ -44,13 +44,13 @@ class AuthService {
     return null;
   }
 
-  // ✅ Хэрэглэгчийн ID авах
+  
   Future<int?> getUserId() async {
     final user = await getUser();
     return user?['id'] as int?;
   }
 
-  // ✅ НЭВТРЭХ
+  
   Future<Map<String, dynamic>> login(String phone, String password) async {
     print('🔐 Нэвтэрч байна...');
     print('📡 URL: ${ApiConfig.loginEndpoint}');
@@ -93,7 +93,7 @@ class AuthService {
     }
   }
 
-  // ✅ БҮРТГҮҮЛЭХ
+  
   Future<Map<String, dynamic>> register({
     required String phone,
     required String name,
@@ -143,7 +143,7 @@ class AuthService {
     }
   }
 
-  // ✅ ГАРАХ - Цэвэрхэн logout
+  
   Future<void> logout() async {
     print('🚪 Гарч байна...');
     
@@ -160,18 +160,18 @@ class AuthService {
         print('✅ Серверээс гарлаа');
       } catch (e) {
         print('⚠️ Серверээс гарах алдаа: $e');
-        // Ignore error - logout locally anyway
+        
       }
     }
 
-    // ✅ Бүх мэдээллийг устгах
+    
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
     await prefs.remove('user');
     print('✅ Локал мэдээлэл устгагдлаа');
   }
 
-  // ✅ Нэвтэрсэн эсэхийг шалгах
+  
   Future<bool> isLoggedIn() async {
     final token = await getAccessToken();
     final user = await getUser();
@@ -180,7 +180,7 @@ class AuthService {
     return isLoggedIn;
   }
 
-  // ✅ ТОКЕН ШИНЭЧЛЭХ
+  
   Future<bool> refreshAccessToken() async {
     print('🔄 Токен шинэчилж байна...');
     
@@ -206,7 +206,7 @@ class AuthService {
         return true;
       } else {
         print('❌ Токен шинэчлэх алдаа: ${data['error']}');
-        // ✅ Токен хүчингүй бол бүх мэдээллийг устгах
+        
         await logout();
         return false;
       }
@@ -216,7 +216,7 @@ class AuthService {
     }
   }
 
-  // ✅ ПРОФАЙЛ АВАХ
+  
   Future<Map<String, dynamic>?> getProfile() async {
     print('👤 Профайл авч байна...');
     
@@ -238,11 +238,11 @@ class AuthService {
       print('📥 Profile response: ${response.statusCode}');
 
       if (response.statusCode == 401) {
-        // ✅ Токен хүчингүй - шинэчлэх оролдлого
+        
         print('⚠️ Токен хүчингүй, шинэчилж байна...');
         final refreshed = await refreshAccessToken();
         if (refreshed) {
-          // Дахин оролдох
+          
           return await getProfile();
         }
         return null;
@@ -264,7 +264,7 @@ class AuthService {
     }
   }
 
-  // Backward compatibility
+  
   @Deprecated('Use refreshAccessToken instead')
   Future<bool> refreshToken() => refreshAccessToken();
 }

@@ -1,4 +1,4 @@
-// lib/services/video_service.dart - COMPLETELY FIXED (Mobile/Flutter compatible)
+
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
@@ -18,7 +18,7 @@ class VideoService {
         receiveTimeout: Duration(minutes: 5),
         sendTimeout: Duration(minutes: 5),
         headers: {
-          'Content-Type': 'multipart/form-data', // ✅ IMPORTANT for file upload
+          'Content-Type': 'multipart/form-data', 
           'Accept': 'application/json',
         },
         validateStatus: (status) {
@@ -27,7 +27,7 @@ class VideoService {
       ),
     );
     
-    // Retry interceptor
+    
     _dio.interceptors.add(
       RetryInterceptor(
         dio: _dio,
@@ -39,7 +39,7 @@ class VideoService {
       ),
     );
     
-    // Auth token interceptor
+    
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -69,12 +69,12 @@ class VideoService {
       ),
     );
     
-    // Logging
+    
     if (ApiConfig.enableLogging && ApiConfig.isDevelopment) {
       _dio.interceptors.add(
         LogInterceptor(
           request: true,
-          requestBody: false, // Don't log binary data
+          requestBody: false, 
           responseBody: true,
           error: true,
         ),
@@ -82,9 +82,9 @@ class VideoService {
     }
   }
   
-  // ==========================================
-  // ✅✅✅ VIDEO UPLOAD - MOBILE/FLUTTER COMPATIBLE
-  // ==========================================
+  
+  
+  
   
   Future<Map<String, dynamic>> uploadVideo({
     required File videoFile,
@@ -94,12 +94,12 @@ class VideoService {
     Function(int sent, int total)? onProgress,
   }) async {
     try {
-      // Validate file exists
+      
       if (!await videoFile.exists()) {
         throw Exception('Видео файл олдсонгүй');
       }
 
-      // Validate file size
+      
       final fileSize = await videoFile.length();
       if (!ApiConfig.isValidVideoSize(fileSize)) {
         throw Exception(
@@ -108,7 +108,7 @@ class VideoService {
         );
       }
       
-      // Validate extension
+      
       final fileName = path.basename(videoFile.path);
       if (!ApiConfig.isValidVideoExtension(fileName)) {
         throw Exception(
@@ -121,7 +121,7 @@ class VideoService {
       print('   Size: ${ApiConfig.formatFileSize(fileSize)}');
       print('   Location: $latitude, $longitude');
       
-      // Get user ID
+      
       final userId = await _authService.getUserId();
       if (userId == null) {
         throw Exception('Нэвтрэх шаардлагатай');
@@ -129,25 +129,25 @@ class VideoService {
       
       print('👤 User ID: $userId');
       
-      // ✅ CRITICAL FIX: Use MultipartFile.fromFileSync for Flutter/mobile
-      // This is the MOBILE version, not server version
+      
+      
       final multipartFile = await MultipartFile.fromFile(
         videoFile.path,
         filename: fileName,
       );
       
-      // ✅ Prepare form data (Flutter/mobile compatible)
+      
       final formData = FormData.fromMap({
         'userId': userId.toString(),
         'latitude': latitude.toString(),
         'longitude': longitude.toString(),
         'description': description,
-        'video': multipartFile, // ✅ Use the created multipart file
+        'video': multipartFile, 
       });
       
       print('📤 Uploading to: ${ApiConfig.videoServiceUrl}/upload');
       
-      // Upload video
+      
       final response = await _dio.post(
         '/upload',
         data: formData,
@@ -163,7 +163,7 @@ class VideoService {
       print('📥 Response status: ${response.statusCode}');
       print('📥 Response: ${response.data}');
       
-      // Handle response
+      
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
         
@@ -209,9 +209,9 @@ class VideoService {
     }
   }
   
-  // ==========================================
-  // VIDEO STATUS
-  // ==========================================
+  
+  
+  
   
   Future<Map<String, dynamic>> getVideoStatus(String videoId) async {
     try {
@@ -241,9 +241,9 @@ class VideoService {
     }
   }
   
-  // ==========================================
-  // GET VIDEOS
-  // ==========================================
+  
+  
+  
   
   Future<List<Map<String, dynamic>>> getVideos({
     int? limit,
@@ -280,9 +280,9 @@ class VideoService {
     }
   }
   
-  // ==========================================
-  // DELETE VIDEO
-  // ==========================================
+  
+  
+  
   
   Future<bool> deleteVideo(String videoId) async {
     try {
@@ -303,9 +303,9 @@ class VideoService {
     }
   }
   
-  // ==========================================
-  // ERROR HANDLING - Mongolian messages
-  // ==========================================
+  
+  
+  
   
   String _handleError(DioException e) {
     switch (e.type) {

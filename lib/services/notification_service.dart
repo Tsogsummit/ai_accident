@@ -1,5 +1,4 @@
-// lib/services/notification_service.dart - ШИНЭ
-import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
 import '../config/api_config.dart';
@@ -18,13 +17,13 @@ class NotificationService {
         sendTimeout: ApiConfig.sendTimeout,
         headers: ApiConfig.defaultHeaders,
         validateStatus: (status) {
-          // Accept all status codes to handle errors properly
+          
           return status != null && status < 500;
         },
       ),
     );
 
-    // Add retry interceptor
+    
     _dio.interceptors.add(
       RetryInterceptor(
         dio: _dio,
@@ -37,7 +36,7 @@ class NotificationService {
       ),
     );
 
-    // Add auth token interceptor
+    
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -49,13 +48,13 @@ class NotificationService {
         },
         onError: (error, handler) async {
           if (error.response?.statusCode == 401) {
-            // Try to refresh token
+            
             final refreshed = await _authService.refreshAccessToken();
             if (refreshed) {
-              // Retry request with new token
+              
               final token = await _authService.getAccessToken();
               error.requestOptions.headers['Authorization'] = 'Bearer $token';
-              
+
               try {
                 final response = await _dio.fetch(error.requestOptions);
                 return handler.resolve(response);
@@ -69,7 +68,7 @@ class NotificationService {
       ),
     );
 
-    // Add logging (development only)
+    
     if (ApiConfig.enableLogging && ApiConfig.isDevelopment) {
       _dio.interceptors.add(
         LogInterceptor(
@@ -82,9 +81,9 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // GET NOTIFICATIONS
-  // ==========================================
+  
+  
+  
 
   Future<Map<String, dynamic>> getNotifications(
     int userId, {
@@ -137,17 +136,15 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // MARK AS READ
-  // ==========================================
+  
+  
+  
 
   Future<bool> markAsRead(String notificationId) async {
     try {
       print('✅ Мэдэгдэл уншиж байна: id=$notificationId');
 
-      final response = await _dio.put(
-        '/notifications/$notificationId/read',
-      );
+      final response = await _dio.put('/notifications/$notificationId/read');
 
       if (response.statusCode == 200 && response.data['success']) {
         print('✅ Мэдэгдэл уншигдлаа');
@@ -161,9 +158,9 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // MARK ALL AS READ
-  // ==========================================
+  
+  
+  
 
   Future<bool> markAllAsRead(int userId) async {
     try {
@@ -186,9 +183,9 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // DELETE NOTIFICATION
-  // ==========================================
+  
+  
+  
 
   Future<bool> deleteNotification(String notificationId, int userId) async {
     try {
@@ -211,9 +208,9 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // GET NOTIFICATION SETTINGS
-  // ==========================================
+  
+  
+  
 
   Future<Map<String, dynamic>?> getSettings(int userId) async {
     try {
@@ -230,9 +227,9 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // UPDATE NOTIFICATION SETTINGS
-  // ==========================================
+  
+  
+  
 
   Future<bool> updateSettings({
     required int userId,
@@ -263,18 +260,15 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // REGISTER FCM TOKEN
-  // ==========================================
+  
+  
+  
 
   Future<bool> registerFcmToken(int userId, String fcmToken) async {
     try {
       final response = await _dio.post(
         '/notifications/register-token',
-        data: {
-          'userId': userId,
-          'fcmToken': fcmToken,
-        },
+        data: {'userId': userId, 'fcmToken': fcmToken},
       );
 
       if (response.statusCode == 200 && response.data['success']) {
@@ -289,9 +283,9 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // UNREGISTER FCM TOKEN
-  // ==========================================
+  
+  
+  
 
   Future<bool> unregisterFcmToken(int userId) async {
     try {
@@ -312,9 +306,9 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // ERROR HANDLING
-  // ==========================================
+  
+  
+  
 
   String _handleError(DioException e) {
     switch (e.type) {
@@ -325,7 +319,8 @@ class NotificationService {
 
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
-        final message = e.response?.data?['error'] ?? e.response?.data?['message'];
+        final message =
+            e.response?.data?['error'] ?? e.response?.data?['message'];
 
         if (statusCode == 401) {
           return 'Нэвтрэх эрх дууссан. Дахин нэвтэрнэ үү.';

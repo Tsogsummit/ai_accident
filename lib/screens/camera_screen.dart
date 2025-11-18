@@ -1,4 +1,4 @@
-// lib/screens/camera_screen.dart - FIXED WITH BETTER ERROR HANDLING
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -135,7 +135,7 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _initializeCamera() async {
-    // Check and request camera permission
+    
     var cameraStatus = await Permission.camera.status;
     if (cameraStatus.isDenied) {
       cameraStatus = await Permission.camera.request();
@@ -147,7 +147,7 @@ class _CameraScreenState extends State<CameraScreen>
           _permissionDenied = true;
           _error = 'Камерын зөвшөөрөл татгалзсан. Тохиргооноос зөвшөөрөл өгнө үү.';
         });
-        // Show dialog to open settings
+        
         _showPermissionDialog('Камер', 'камерын');
       }
       return;
@@ -163,7 +163,7 @@ class _CameraScreenState extends State<CameraScreen>
       return;
     }
 
-    // Check and request microphone permission for video recording with audio
+    
     var microphoneStatus = await Permission.microphone.status;
     if (microphoneStatus.isDenied) {
       microphoneStatus = await Permission.microphone.request();
@@ -175,7 +175,7 @@ class _CameraScreenState extends State<CameraScreen>
           _permissionDenied = true;
           _error = 'Микрофоны зөвшөөрөл татгалзсан. Тохиргооноос зөвшөөрөл өгнө үү.';
         });
-        // Show dialog to open settings
+        
         _showPermissionDialog('Микрофон', 'микрофоны');
       }
       return;
@@ -233,11 +233,11 @@ class _CameraScreenState extends State<CameraScreen>
         _recordingSeconds = 0;
       });
 
-      // Update UI less frequently to reduce message queue spam
+      
       _recordingTimer = Timer.periodic(Duration(seconds: 1), (timer) {
         if (mounted && _isRecording) {
           _recordingSeconds++;
-          // Only update UI every 5 seconds to reduce setState calls
+          
           if (_recordingSeconds % 5 == 0) {
             setState(() {});
           }
@@ -386,7 +386,7 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-  // ✅✅✅ FIXED: Better error handling and logging
+  
   Future<void> _uploadVideo() async {
     if (_videoPath == null) {
       print('❌ Video path null байна');
@@ -394,7 +394,7 @@ class _CameraScreenState extends State<CameraScreen>
       return;
     }
 
-    // Check if file exists
+    
     final videoFile = File(_videoPath!);
     if (!await videoFile.exists()) {
       print('❌ Video файл байхгүй: $_videoPath');
@@ -405,7 +405,7 @@ class _CameraScreenState extends State<CameraScreen>
     print('✅ Video файл олдлоо: $_videoPath');
     print('   Size: ${await videoFile.length()} bytes');
 
-    // Get location
+    
     if (_currentPosition == null) {
       await _getCurrentLocation();
       if (_currentPosition == null) {
@@ -427,7 +427,7 @@ class _CameraScreenState extends State<CameraScreen>
 
     print('📍 Location: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}');
 
-    // Show loading dialog
+    
     if (!mounted) return;
     
     showDialog(
@@ -482,10 +482,10 @@ class _CameraScreenState extends State<CameraScreen>
 
       print('✅ Upload result: $result');
 
-      _deleteVideo(); // Delete after successful upload
+      _deleteVideo(); 
 
       if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context); 
 
       if (result != null && result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -521,7 +521,7 @@ class _CameraScreenState extends State<CameraScreen>
       print('❌ Stack trace: $stackTrace');
       
       if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context); 
 
       _showErrorDialog('Видео илгээхэд алдаа гарлаа:\n\n$e');
     }
@@ -552,7 +552,7 @@ class _CameraScreenState extends State<CameraScreen>
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _uploadVideo(); // Retry
+                _uploadVideo(); 
               },
               child: Text('Дахин оролдох'),
             ),

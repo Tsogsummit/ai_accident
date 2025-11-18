@@ -67,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: 60),
 
-                // Logo эсвэл гарчиг
+                
                 const Icon(
                   Icons.traffic,
                   size: 80,
@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 48),
 
-                // Утасны дугаар
+                
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Нууц үг
+                
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -154,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Нэвтрэх товч
+                
                 ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
@@ -184,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Бүртгүүлэх линк
+                
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

@@ -1,4 +1,4 @@
-// lib/providers/accident_provider.dart - FIXED VERSION
+
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../models/accident.dart';
@@ -27,7 +27,7 @@ class AccidentProvider extends ChangeNotifier {
     AccidentStatus.confirmed,
   };
 
-  // Getters
+  
   List<Accident> get accidents => _filteredAccidents;
   List<Accident> get allAccidents => _accidents;
   bool get isLoading => _isLoading;
@@ -42,7 +42,7 @@ class AccidentProvider extends ChangeNotifier {
   final AccidentService _accidentService = AccidentService();
   final VideoService _videoService = VideoService();
 
-  // Statistics
+  
   int get totalAccidents => _accidents.length;
   int get visibleAccidents => _filteredAccidents.length;
   int get userAccidents =>
@@ -56,7 +56,7 @@ class AccidentProvider extends ChangeNotifier {
   int get resolvedAccidents =>
       _accidents.where((a) => a.status == AccidentStatus.resolved).length;
 
-  // Load accidents
+  
   Future<void> loadAccidents({bool forceRefresh = false}) async {
     if (_isLoading || _isRefreshing) return;
 
@@ -87,7 +87,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Refresh accidents
+  
   Future<void> refreshAccidents() async {
     if (_isRefreshing) return;
 
@@ -116,7 +116,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Load nearby accidents
+  
   Future<void> loadNearbyAccidents(
       double latitude,
       double longitude, {
@@ -150,7 +150,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅✅✅ FIXED: VIDEO UPLOAD with proper response handling
+  
   Future<Map<String, dynamic>?> uploadVideoAccident({
     required File videoFile,
     required double latitude,
@@ -166,7 +166,7 @@ class AccidentProvider extends ChangeNotifier {
 
       print('📹 Видео upload эхэллээ...');
 
-      // Call VideoService
+      
       final result = await _videoService.uploadVideo(
         videoFile: videoFile,
         latitude: latitude,
@@ -188,13 +188,13 @@ class AccidentProvider extends ChangeNotifier {
         print('   VideoId: ${result['videoId']}');
         print('   AccidentId: ${result['accidentId']}');
 
-        // ✅ Clear cache to ensure fresh data from backend
+        
         _accidentService.clearCache();
         
-        // ✅ Always reload from backend after successful upload
-        // This ensures we get the complete accident data with proper timestamps
-        // and any additional fields that might have been set by the backend
-        await Future.delayed(Duration(milliseconds: 500)); // Small delay to ensure backend has processed
+        
+        
+        
+        await Future.delayed(Duration(milliseconds: 500)); 
         await loadAccidents(forceRefresh: true);
 
         _isUploading = false;
@@ -215,7 +215,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Update accident
+  
   Future<bool> updateAccident(
       String accidentId, {
         String? description,
@@ -245,7 +245,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Verify accident
+  
   Future<bool> verifyAccident(String accidentId) async {
     try {
       _error = '';
@@ -269,7 +269,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Report false accident (using new FalseReportService)
+  
   Future<bool> reportFalseAccident({
     required int accidentId,
     required int userId,
@@ -279,7 +279,7 @@ class AccidentProvider extends ChangeNotifier {
     try {
       _error = '';
 
-      // Import FalseReportService at the top of the file
+      
       final falseReportService = FalseReportService();
 
       final result = await falseReportService.reportFalseAlarm(
@@ -302,7 +302,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Delete accident
+  
   Future<bool> deleteAccident(String accidentId) async {
     try {
       _error = '';
@@ -321,7 +321,7 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Filter methods
+  
   void toggleSourceFilter(AccidentSource source) {
     if (_sourceFilters.contains(source)) {
       _sourceFilters.remove(source);

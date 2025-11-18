@@ -1,4 +1,4 @@
-// lib/services/false_report_service.dart
+
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import 'auth_service.dart';
@@ -15,7 +15,7 @@ class FalseReportService {
     _dio.options.headers = ApiConfig.defaultHeaders;
   }
 
-  // Get authorization header
+  
   Future<Map<String, String>> _getHeaders() async {
     final token = await _authService.getAccessToken();
     final headers = <String, String>{};
@@ -25,7 +25,7 @@ class FalseReportService {
     return headers;
   }
 
-  // Get report reasons
+  
   Future<List<Map<String, dynamic>>> getReportReasons() async {
     try {
       final headers = await _getHeaders();
@@ -45,7 +45,7 @@ class FalseReportService {
     }
   }
 
-  // Report false alarm
+  
   Future<Map<String, dynamic>> reportFalseAlarm({
     required int accidentId,
     required int userId,
@@ -75,7 +75,7 @@ class FalseReportService {
         };
       }
 
-      // Check if already reported
+      
       if (response.data is Map && response.data['alreadyReported'] == true) {
         print('⚠️ User has already reported this accident');
         return {
@@ -95,7 +95,7 @@ class FalseReportService {
       if (e.response != null) {
         print('Response: ${e.response?.data}');
 
-        // Check if backend says already reported
+        
         if (e.response?.data is Map && e.response?.data['alreadyReported'] == true) {
           return {
             'success': false,
