@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';
 import '../models/accident.dart';
 import '../services/auth_service.dart';
+import '../widgets/false_report_dialog.dart';
 import 'login_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -52,16 +53,16 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
       return;
     }
 
-    // ✅ Logged in - load data
+    // ✅ Logged in - load data (only user's own accidents)
     if (mounted) {
       setState(() {
         _isInitialized = true;
       });
-      
+
       final provider = Provider.of<AccidentProvider>(context, listen: false);
-      
+
       try {
-        await provider.loadAccidents();
+        await provider.loadAccidents(userOnly: true);
       } catch (e) {
         print('❌ Load accidents error: $e');
         // Don't navigate away on error, just show error in UI
@@ -73,10 +74,10 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
     // Don't check token here - let the API call handle it
     if (mounted) {
       final provider = Provider.of<AccidentProvider>(context, listen: false);
-      
+
       try {
-        await provider.loadAccidents(forceRefresh: true);
-        
+        await provider.loadAccidents(forceRefresh: true, userOnly: true);
+
         // Clear any previous errors
         provider.clearError();
       } catch (e) {
@@ -151,7 +152,7 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   children: [
                     Icon(Icons.videocam, size: 20),
                     SizedBox(width: 8),
-                    Text('Камераас'),
+                    Text('Бичлэгээс'),
                   ],
                 ),
               ),
@@ -359,7 +360,7 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
               // Description
               if (accident.description.isNotEmpty) ...[
                 Text(
-                  accident.description,
+                  _stripDuration(accident.description),
                   style: TextStyle(fontSize: 14),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -490,20 +491,17 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
                   // Details
                   _buildDetailRow('Төлөв', accident.statusMongolian, Icons.info, _getStatusColor(accident.status)),
-                  _buildDetailRow('Мэдээлсэн', accident.reportedBy, Icons.person, Colors.blue),
                   _buildDetailRow('Огноо цаг', _formatDateTime(accident.timestamp), Icons.access_time, Colors.grey[700]!),
                   _buildDetailRow('Байршил', '${accident.latitude.toStringAsFixed(6)}, ${accident.longitude.toStringAsFixed(6)}', Icons.location_on, Colors.red),
-                  if (accident.verificationCount > 0)
-                    _buildDetailRow('Баталгаажуулалт', '${accident.verificationCount} хүн', Icons.verified, Colors.green),
 
                   if (accident.description.isNotEmpty) ...[
                     SizedBox(height: 16),
                     Text(
-                      'Тайлбар:',
+                      'Хэрэглэгчээс бичигдсэн осол:',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     SizedBox(height: 8),
-                    Text(accident.description, style: TextStyle(fontSize: 14)),
+                    Text(_stripDuration(accident.description), style: TextStyle(fontSize: 14)),
                   ],
 
                   SizedBox(height: 24),
@@ -518,17 +516,44 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                           },
                           icon: Icon(Icons.map),
                           label: Text('Газрын зураг'),
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                          ),
                         ),
                       ),
                       SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _verifyAccident(context, accident);
-                          },
-                          icon: Icon(Icons.verified),
-                          label: Text('Баталгаажуулах'),
+                          onPressed: accident.userHasReported
+                              ? null
+                              : () async {
+                                  final result = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => FalseReportDialog(
+                                      accidentId: int.parse(accident.id),
+                                      userHasReported: accident.userHasReported,
+                                    ),
+                                  );
+
+                                  if (result == true && mounted) {
+                                    // Refresh the data
+                                    _refreshData();
+                                    Navigator.pop(context);
+                                  }
+                                },
+                          icon: Icon(
+                            accident.userHasReported ? Icons.check_circle : Icons.report_problem,
+                            size: 18,
+                          ),
+                          label: Text(
+                            accident.userHasReported ? 'Мэдэгдсэн' : 'Буруу мэдээлэл',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accident.userHasReported ? Colors.grey : Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                          ),
                         ),
                       ),
                     ],
@@ -566,20 +591,13 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
     );
   }
 
-  void _verifyAccident(BuildContext context, Accident accident) {
-    final provider = context.read<AccidentProvider>();
-    provider.verifyAccident(accident.id).then((success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(success ? 'Амжилттай баталгаажууллаа' : 'Алдаа гарлаа'),
-          backgroundColor: success ? Colors.green : Colors.red,
-        ),
-      );
-    });
-  }
-
   String _formatDateTime(DateTime dt) {
     return '${dt.year}/${dt.month.toString().padLeft(2, '0')}/${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _stripDuration(String description) {
+    // Remove duration like (0:45) or (1:23) from the end
+    return description.replaceAll(RegExp(r'\s*\(\d+:\d+\)\s*$'), '');
   }
 
   Color _getSourceColor(AccidentSource source) {

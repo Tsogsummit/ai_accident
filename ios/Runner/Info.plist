@@ -6,6 +6,10 @@
     <string>This app needs camera access to record accident videos for reporting purposes.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>This app needs microphone access to record audio with accident videos.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>This app needs access to your photo library to select videos and photos for accident reports.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>This app needs access to save videos and photos to your photo library.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>This app needs location access to record the location of accidents and show them on the map.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

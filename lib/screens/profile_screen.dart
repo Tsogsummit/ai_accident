@@ -117,18 +117,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         // Logout хийх
         await _authService.logout();
-        
+
         if (!mounted) return;
-        
+
         // Loading dialog хаах
         Navigator.pop(context);
-        
+
         // Login screen руу шилжих
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,
         );
-        
+
         // Success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -138,10 +138,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       } catch (e) {
         if (!mounted) return;
-        
+
         // Loading dialog хаах
         Navigator.pop(context);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Гарахад алдаа: $e'),
@@ -152,6 +152,221 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // ✅ ПРОФАЙЛ ЗАСАХ функц
+  Future<void> _showEditProfileDialog() async {
+    final nameController = TextEditingController(text: _userData?['name'] ?? '');
+    final phoneController = TextEditingController(text: _userData?['phone'] ?? '');
+    final emailController = TextEditingController(text: _userData?['email'] ?? '');
+    final passwordController = TextEditingController();
+    bool obscurePassword = true;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.edit, color: Colors.blue),
+              SizedBox(width: 8),
+              Text('Профайл засах'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Өөрчлөлт хийхийн тулд одоогийн нууц үгээ оруулна уу',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                ),
+                SizedBox(height: 16),
+
+                // Name
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Нэр',
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 12),
+
+                // Phone
+                TextField(
+                  controller: phoneController,
+                  decoration: InputDecoration(
+                    labelText: 'Утас',
+                    prefixIcon: Icon(Icons.phone),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    hintText: '+976XXXXXXXX',
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+                SizedBox(height: 12),
+
+                // Email
+                TextField(
+                  controller: emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Имэйл (заавал биш)',
+                    prefixIcon: Icon(Icons.email),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                SizedBox(height: 16),
+
+                Divider(),
+                SizedBox(height: 8),
+
+                Text(
+                  'Одоогийн нууц үг *',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red[700],
+                  ),
+                ),
+                SizedBox(height: 8),
+
+                // Current Password
+                TextField(
+                  controller: passwordController,
+                  obscureText: obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Одоогийн нууц үг',
+                    prefixIcon: Icon(Icons.lock),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscurePassword ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          obscurePassword = !obscurePassword;
+                        });
+                      },
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Болих'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (passwordController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Одоогийн нууц үгээ оруулна уу'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(context, true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Хадгалах'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true) {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Хадгалж байна...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      try {
+        final response = await _authService.updateProfile(
+          name: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
+          phone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : null,
+          email: emailController.text.trim().isNotEmpty ? emailController.text.trim() : null,
+          currentPassword: passwordController.text,
+        );
+
+        if (!mounted) return;
+
+        // Close loading dialog
+        Navigator.pop(context);
+
+        if (response['success'] == true) {
+          // Update local state
+          setState(() {
+            _userData = response['user'];
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ ${response['message'] ?? 'Амжилттай хадгалагдлаа'}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ ${response['error'] ?? 'Алдаа гарлаа'}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+
+        // Close loading dialog
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Алдаа гарлаа: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+
+    // Cleanup
+    nameController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -160,6 +375,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.blue,
         automaticallyImplyLeading: false,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: _showEditProfileDialog,
+            tooltip: 'Засах',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadUserData,

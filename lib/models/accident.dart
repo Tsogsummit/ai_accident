@@ -26,7 +26,7 @@ class Accident {
     required this.timestamp,
     this.status = AccidentStatus.reported,
     this.source = AccidentSource.user,
-    this.reportedBy = 'Тодорхойгүй',
+    this.reportedBy = '',
     this.userId,
     this.cameraId,
     this.verificationCount = 0,
@@ -47,7 +47,7 @@ class Accident {
           : DateTime.now()),
       status: _parseStatus(json['status']),
       source: _parseSource(json['source']),
-      reportedBy: json['reported_by'] ?? json['reportedBy'] ?? 'Тодорхойгүй',
+      reportedBy: json['reported_by'] ?? json['reportedBy'] ?? '',
       userId: json['user_id'],
       cameraId: json['camera_id'],
       verificationCount: json['verification_count'] ?? 0,
@@ -165,7 +165,7 @@ class Accident {
       case AccidentSource.user:
         return 'Хэрэглэгч';
       case AccidentSource.camera:
-        return 'Камер';
+        return 'Бичлэг';
     }
   }
 

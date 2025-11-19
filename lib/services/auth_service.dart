@@ -264,6 +264,86 @@ class AuthService {
     }
   }
 
+  // ✅ ПРОФАЙЛ ШИНЭЧЛЭХ
+  Future<Map<String, dynamic>> updateProfile({
+    String? name,
+    String? email,
+    String? phone,
+    required String currentPassword,
+  }) async {
+    print('✏️ Профайл шинэчилж байна...');
+
+    try {
+      final token = await getAccessToken();
+      if (token == null) {
+        print('❌ Токен олдсонгүй');
+        return {
+          'success': false,
+          'error': 'Нэвтрэх шаардлагатай'
+        };
+      }
+
+      final response = await http.put(
+        Uri.parse('${baseUrl}/auth/profile'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'currentPassword': currentPassword,
+        }),
+      ).timeout(Duration(seconds: 10));
+
+      print('📥 Update profile response: ${response.statusCode}');
+
+      if (response.statusCode == 401) {
+        // ✅ Токен хүчингүй - шинэчлэх оролдлого
+        print('⚠️ Токен хүчингүй, шинэчилж байна...');
+        final refreshed = await refreshAccessToken();
+        if (refreshed) {
+          // Дахин оролдох
+          return await updateProfile(
+            name: name,
+            email: email,
+            phone: phone,
+            currentPassword: currentPassword,
+          );
+        }
+        return {
+          'success': false,
+          'error': 'Токен хүчингүй. Дахин нэвтэрнэ үү.'
+        };
+      }
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success']) {
+        await saveUser(data['user']);
+        print('✅ Профайл шинэчлэгдлээ: ${data['user']['name']}');
+        return {
+          'success': true,
+          'message': data['message'],
+          'user': data['user']
+        };
+      } else {
+        print('❌ Профайл шинэчлэх алдаа: ${data['error']}');
+        return {
+          'success': false,
+          'error': data['error'] ?? 'Профайл шинэчлэхэд алдаа гарлаа'
+        };
+      }
+    } catch (e) {
+      print('❌ Профайл шинэчлэх алдаа: $e');
+      return {
+        'success': false,
+        'error': 'Сервертэй холбогдож чадсангүй. IP хаягаа шалгана уу.\n\nАлдаа: $e'
+      };
+    }
+  }
+
   // Backward compatibility
   @Deprecated('Use refreshAccessToken instead')
   Future<bool> refreshToken() => refreshAccessToken();

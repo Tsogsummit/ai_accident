@@ -57,7 +57,7 @@ class AccidentProvider extends ChangeNotifier {
       _accidents.where((a) => a.status == AccidentStatus.resolved).length;
 
   // Load accidents
-  Future<void> loadAccidents({bool forceRefresh = false}) async {
+  Future<void> loadAccidents({bool forceRefresh = false, bool userOnly = false}) async {
     if (_isLoading || _isRefreshing) return;
 
     _isLoading = true;
@@ -66,13 +66,14 @@ class AccidentProvider extends ChangeNotifier {
 
     try {
       print('📡 Ослын мэдээлэл татаж байна...');
-      
+
       _accidents = await _accidentService.getAllAccidents(
         forceRefresh: forceRefresh,
+        userOnly: userOnly,
       );
-      
+
       print('✅ ${_accidents.length} осол ачаалагдлаа');
-      
+
       _applyFilters();
       _lastFetchTime = DateTime.now();
       _error = '';

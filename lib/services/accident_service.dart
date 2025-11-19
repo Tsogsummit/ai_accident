@@ -128,6 +128,7 @@ class AccidentService {
     int? limit,
     int? offset,
     bool forceRefresh = false,
+    bool userOnly = false,
   }) async {
     // Return cached data if valid
     if (!forceRefresh && _isCacheValid()) {
@@ -137,7 +138,7 @@ class AccidentService {
 
     try {
       print('📡 Backend-с ослын мэдээлэл татаж байна...');
-      
+
       Map<String, dynamic> queryParams = {};
 
       if (source != null) {
@@ -153,6 +154,11 @@ class AccidentService {
       if (radius != null) queryParams['radius'] = radius;
       if (limit != null) queryParams['limit'] = limit;
       if (offset != null) queryParams['offset'] = offset;
+      if (forceRefresh) queryParams['forceRefresh'] = 'true';
+      if (userOnly) queryParams['userOnly'] = 'true';
+
+      print('🔍 DEBUG: getAllAccidents queryParams = $queryParams');
+      print('🔍 DEBUG: userOnly = $userOnly');
 
       final response = await _dio.get(
         ApiConfig.accidentsEndpoint,

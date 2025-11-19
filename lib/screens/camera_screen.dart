@@ -477,7 +477,7 @@ class _CameraScreenState extends State<CameraScreen>
         videoFile: videoFile,
         latitude: _currentPosition!.latitude,
         longitude: _currentPosition!.longitude,
-        description: 'Камераас бичигдсэн осол (${_formatDuration(_recordingSeconds)})',
+        description: 'Хэрэглэгчээс бичигдсэн бичлэг (${_formatDuration(_recordingSeconds)})',
       );
 
       print('✅ Upload result: $result');
