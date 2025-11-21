@@ -7,6 +7,7 @@
       "name": "ai_accident",
       "version": "1.0.0+1",
       "dependencies": [
+        "apple_maps_flutter",
         "cached_network_image",
         "camera",
         "connectivity_plus",
@@ -1219,6 +1220,13 @@
       "dependencies": [
         "collection",
         "meta"
+      ]
+    },
+    {
+      "name": "apple_maps_flutter",
+      "version": "1.4.0",
+      "dependencies": [
+        "flutter"
       ]
     }
   ],

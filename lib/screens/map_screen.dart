@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as google_maps;
+import 'package:apple_maps_flutter/apple_maps_flutter.dart' as apple_maps;
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../providers/accident_provider.dart';
@@ -12,7 +14,7 @@ import '../widgets/false_report_dialog.dart';
 class MapScreen extends StatefulWidget {
   final double? initialLatitude;
   final double? initialLongitude;
-  
+
   const MapScreen({
     super.key,
     this.initialLatitude,
@@ -24,24 +26,36 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixin {
-  GoogleMapController? _mapController;
-  final Completer<GoogleMapController> _controller = Completer();
+  // Platform-specific controllers
+  google_maps.GoogleMapController? _googleMapController;
+  apple_maps.AppleMapController? _appleMapController;
+
+  final Completer<google_maps.GoogleMapController> _googleController = Completer();
+  final Completer<apple_maps.AppleMapController> _appleController = Completer();
 
   Position? _currentPosition;
   StreamSubscription<Position>? _positionStreamSubscription;
 
-  Set<Marker> _markers = {};
+  // Platform-specific markers
+  Set<google_maps.Marker> _googleMarkers = {};
+  Set<apple_maps.Annotation> _appleAnnotations = {};
+
   bool _isMapReady = false;
   double _currentZoom = 12.0;
-  CameraPosition? _currentCameraPosition;
+  google_maps.CameraPosition? _currentGoogleCameraPosition;
+  apple_maps.CameraPosition? _currentAppleCameraPosition;
   bool _isAnimating = false;
 
   // Track last updated accidents to prevent unnecessary marker updates
   List<Accident>? _lastAccidents;
 
-  static const LatLng _defaultLocation = LatLng(47.9077, 106.8832); // Ulaanbaatar
+  // Default location - Ulaanbaatar
+  static const double _defaultLat = 47.9077;
+  static const double _defaultLng = 106.8832;
   static const double _minZoom = 5.0;
   static const double _maxZoom = 20.0;
+
+  bool get _isIOS => Platform.isIOS;
 
   @override
   bool get wantKeepAlive => true;
@@ -56,7 +70,8 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
       if (widget.initialLatitude != null && widget.initialLongitude != null) {
         Future.delayed(Duration(milliseconds: 500), () {
           _moveToLocation(
-            LatLng(widget.initialLatitude!, widget.initialLongitude!),
+            widget.initialLatitude!,
+            widget.initialLongitude!,
             zoom: 15.0,
           );
         });
@@ -67,7 +82,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   @override
   void dispose() {
     _positionStreamSubscription?.cancel();
-    _mapController?.dispose();
+    _googleMapController?.dispose();
     super.dispose();
   }
 
@@ -93,7 +108,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
       if (mounted) {
         setState(() => _currentPosition = position);
         if (_isMapReady) {
-          _moveToLocation(LatLng(position.latitude, position.longitude));
+          _moveToLocation(position.latitude, position.longitude);
         }
       }
     } catch (e) {
@@ -122,36 +137,56 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   void _updateMarkers(List<Accident> accidents) {
     if (!_isMapReady) return;
 
-    Set<Marker> newMarkers = {};
-
-    for (final accident in accidents) {
-      newMarkers.add(
-        Marker(
-          markerId: MarkerId('accident_${accident.id}'),
-          position: LatLng(accident.latitude, accident.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          infoWindow: InfoWindow(
-            title: accident.statusMongolian,
-            snippet: _formatTime(accident.timestamp),
-            onTap: () => _showAccidentDetails(accident),
+    if (_isIOS) {
+      Set<apple_maps.Annotation> newAnnotations = {};
+      for (final accident in accidents) {
+        newAnnotations.add(
+          apple_maps.Annotation(
+            annotationId: apple_maps.AnnotationId('accident_${accident.id}'),
+            position: apple_maps.LatLng(accident.latitude, accident.longitude),
+            infoWindow: apple_maps.InfoWindow(
+              title: accident.statusMongolian,
+              snippet: _formatTime(accident.timestamp),
+              onTap: () => _showAccidentDetails(accident),
+            ),
           ),
-        ),
-      );
+        );
+      }
+      setState(() {
+        _appleAnnotations = newAnnotations;
+        _lastAccidents = accidents;
+      });
+    } else {
+      Set<google_maps.Marker> newMarkers = {};
+      for (final accident in accidents) {
+        newMarkers.add(
+          google_maps.Marker(
+            markerId: google_maps.MarkerId('accident_${accident.id}'),
+            position: google_maps.LatLng(accident.latitude, accident.longitude),
+            icon: google_maps.BitmapDescriptor.defaultMarkerWithHue(
+                google_maps.BitmapDescriptor.hueRed),
+            infoWindow: google_maps.InfoWindow(
+              title: accident.statusMongolian,
+              snippet: _formatTime(accident.timestamp),
+              onTap: () => _showAccidentDetails(accident),
+            ),
+          ),
+        );
+      }
+      setState(() {
+        _googleMarkers = newMarkers;
+        _lastAccidents = accidents;
+      });
     }
-
-    setState(() {
-      _markers = newMarkers;
-      _lastAccidents = accidents;
-    });
   }
 
-  void _onMapCreated(GoogleMapController controller) {
-    _controller.complete(controller);
-    _mapController = controller;
+  void _onGoogleMapCreated(google_maps.GoogleMapController controller) {
+    _googleController.complete(controller);
+    _googleMapController = controller;
     _isMapReady = true;
 
     if (_currentPosition != null) {
-      _moveToLocation(LatLng(_currentPosition!.latitude, _currentPosition!.longitude));
+      _moveToLocation(_currentPosition!.latitude, _currentPosition!.longitude);
     }
 
     Timer(Duration(milliseconds: 300), () {
@@ -159,23 +194,48 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     });
   }
 
-  void _moveToLocation(LatLng location, {double? zoom}) async {
-    if (_mapController == null || _isAnimating) return;
-    
+  void _onAppleMapCreated(apple_maps.AppleMapController controller) {
+    _appleController.complete(controller);
+    _appleMapController = controller;
+    _isMapReady = true;
+
+    if (_currentPosition != null) {
+      _moveToLocation(_currentPosition!.latitude, _currentPosition!.longitude);
+    }
+
+    Timer(Duration(milliseconds: 300), () {
+      if (mounted) _loadAccidents();
+    });
+  }
+
+  void _moveToLocation(double lat, double lng, {double? zoom}) async {
+    if (_isAnimating) return;
+
     _isAnimating = true;
     try {
       final targetZoom = zoom ?? _currentZoom.clamp(_minZoom, _maxZoom);
-      
-      await _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: location,
-            zoom: targetZoom,
-            tilt: _currentCameraPosition?.tilt ?? 0.0,
-            bearing: _currentCameraPosition?.bearing ?? 0.0,
+
+      if (_isIOS && _appleMapController != null) {
+        await _appleMapController!.animateCamera(
+          apple_maps.CameraUpdate.newCameraPosition(
+            apple_maps.CameraPosition(
+              target: apple_maps.LatLng(lat, lng),
+              zoom: targetZoom,
+            ),
           ),
-        ),
-      );
+        );
+      } else if (_googleMapController != null) {
+        await _googleMapController!.animateCamera(
+          google_maps.CameraUpdate.newCameraPosition(
+            google_maps.CameraPosition(
+              target: google_maps.LatLng(lat, lng),
+              zoom: targetZoom,
+              tilt: _currentGoogleCameraPosition?.tilt ?? 0.0,
+              bearing: _currentGoogleCameraPosition?.bearing ?? 0.0,
+            ),
+          ),
+        );
+      }
     } finally {
       _isAnimating = false;
     }
@@ -184,29 +244,39 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   void _moveToCurrentLocation() {
     if (_currentPosition != null) {
       _moveToLocation(
-        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
         zoom: 15.0,
       );
     } else {
       _initializeLocation().then((_) {
         if (_currentPosition != null) {
           _moveToLocation(
-            LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
             zoom: 15.0,
           );
         }
       });
     }
   }
-  
+
   void _zoomIn() {
-    if (_mapController == null || _isAnimating) return;
-    _mapController!.animateCamera(CameraUpdate.zoomIn());
+    if (_isAnimating) return;
+    if (_isIOS && _appleMapController != null) {
+      _appleMapController!.animateCamera(apple_maps.CameraUpdate.zoomIn());
+    } else if (_googleMapController != null) {
+      _googleMapController!.animateCamera(google_maps.CameraUpdate.zoomIn());
+    }
   }
-  
+
   void _zoomOut() {
-    if (_mapController == null || _isAnimating) return;
-    _mapController!.animateCamera(CameraUpdate.zoomOut());
+    if (_isAnimating) return;
+    if (_isIOS && _appleMapController != null) {
+      _appleMapController!.animateCamera(apple_maps.CameraUpdate.zoomOut());
+    } else if (_googleMapController != null) {
+      _googleMapController!.animateCamera(google_maps.CameraUpdate.zoomOut());
+    }
   }
 
   void _showAccidentDetails(Accident accident) {
@@ -278,7 +348,8 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                         onPressed: () {
                           Navigator.pop(context);
                           _moveToLocation(
-                            LatLng(accident.latitude, accident.longitude),
+                            accident.latitude,
+                            accident.longitude,
                             zoom: 15.0,
                           );
                         },
@@ -376,6 +447,74 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
+  Widget _buildAppleMap() {
+    return apple_maps.AppleMap(
+      onMapCreated: _onAppleMapCreated,
+      initialCameraPosition: apple_maps.CameraPosition(
+        target: _currentPosition != null
+            ? apple_maps.LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+            : apple_maps.LatLng(_defaultLat, _defaultLng),
+        zoom: 12.0,
+      ),
+      annotations: _appleAnnotations,
+      myLocationEnabled: true,
+      myLocationButtonEnabled: false,
+      compassEnabled: true,
+      minMaxZoomPreference: apple_maps.MinMaxZoomPreference(_minZoom, _maxZoom),
+      onCameraMove: (position) {
+        _currentZoom = position.zoom;
+        _currentAppleCameraPosition = position;
+      },
+      onCameraMoveStarted: () {
+        _isAnimating = true;
+      },
+      onCameraIdle: () {
+        _isAnimating = false;
+      },
+    );
+  }
+
+  Widget _buildGoogleMap() {
+    return google_maps.GoogleMap(
+      onMapCreated: _onGoogleMapCreated,
+      initialCameraPosition: google_maps.CameraPosition(
+        target: _currentPosition != null
+            ? google_maps.LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+            : google_maps.LatLng(_defaultLat, _defaultLng),
+        zoom: 12.0,
+      ),
+      markers: _googleMarkers,
+      myLocationEnabled: true,
+      myLocationButtonEnabled: false,
+      zoomControlsEnabled: false,
+      mapToolbarEnabled: false,
+      compassEnabled: true,
+      minMaxZoomPreference: google_maps.MinMaxZoomPreference(_minZoom, _maxZoom),
+      // Enable smooth gestures
+      zoomGesturesEnabled: true,
+      scrollGesturesEnabled: true,
+      tiltGesturesEnabled: true,
+      rotateGesturesEnabled: true,
+      // Optimize gesture recognizers for smooth interaction
+      gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+        Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
+        Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
+        Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
+        Factory<LongPressGestureRecognizer>(() => LongPressGestureRecognizer()),
+      },
+      onCameraMove: (position) {
+        _currentZoom = position.zoom;
+        _currentGoogleCameraPosition = position;
+      },
+      onCameraMoveStarted: () {
+        _isAnimating = true;
+      },
+      onCameraIdle: () {
+        _isAnimating = false;
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -414,47 +553,10 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
 
           return Stack(
             children: [
-              // Google Map
-              GoogleMap(
-                onMapCreated: _onMapCreated,
-                initialCameraPosition: CameraPosition(
-                  target: _currentPosition != null
-                      ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-                      : _defaultLocation,
-                  zoom: 12.0,
-                ),
-                markers: _markers,
-                myLocationEnabled: true,
-                myLocationButtonEnabled: false,
-                zoomControlsEnabled: false,
-                mapToolbarEnabled: false,
-                compassEnabled: true,
-                minMaxZoomPreference: MinMaxZoomPreference(_minZoom, _maxZoom),
-                // Enable smooth gestures
-                zoomGesturesEnabled: true,
-                scrollGesturesEnabled: true,
-                tiltGesturesEnabled: true,
-                rotateGesturesEnabled: true,
-                // Optimize gesture recognizers for smooth interaction
-                gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-                  Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
-                  Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
-                  Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
-                  Factory<LongPressGestureRecognizer>(() => LongPressGestureRecognizer()),
-                },
-                onCameraMove: (position) {
-                  _currentZoom = position.zoom;
-                  _currentCameraPosition = position;
-                },
-                onCameraMoveStarted: () {
-                  _isAnimating = true;
-                },
-                onCameraIdle: () {
-                  _isAnimating = false;
-                },
-              ),
+              // Platform-specific map
+              _isIOS ? _buildAppleMap() : _buildGoogleMap(),
 
-              // ✅ COMPACT STATISTICS - Single Row
+              // COMPACT STATISTICS - Single Row
               Positioned(
                 top: 12,
                 left: 12,
@@ -475,7 +577,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                           Colors.grey[700]!,
                         ),
                         _buildCompactStat(
-                          '${_markers.length}',
+                          '${_isIOS ? _appleAnnotations.length : _googleMarkers.length}',
                           'Харагдаж буй',
                           Colors.blue,
                         ),
@@ -566,7 +668,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     );
   }
 
-  // ✅ COMPACT STAT WIDGET - Smaller and cleaner
+  // COMPACT STAT WIDGET - Smaller and cleaner
   Widget _buildCompactStat(String value, String label, Color color) {
     return Column(
       mainAxisSize: MainAxisSize.min,
