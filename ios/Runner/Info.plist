@@ -2,20 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>NSCameraUsageDescription</key>
-    <string>This app needs camera access to record accident videos for reporting purposes.</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>This app needs microphone access to record audio with accident videos.</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>This app needs access to your photo library to select videos and photos for accident reports.</string>
-    <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>This app needs access to save videos and photos to your photo library.</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>This app needs location access to record the location of accidents and show them on the map.</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>This app needs location access to record the location of accidents and show them on the map.</string>
-    <key>MinimumOSVersion</key>
-    <string>17.0</string>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -36,7 +24,25 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GMSApiKey</key>
+	<string>AIzaSyAwJZ0luHRvQy9F7aIHYxpOXDP2KUFILHY</string>
 	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>MinimumOSVersion</key>
+	<string>17.0</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to record accident videos for reporting purposes.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs location access to record the location of accidents and show them on the map.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs location access to record the location of accidents and show them on the map.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs microphone access to record audio with accident videos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs access to save videos and photos to your photo library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photo library to select videos and photos for accident reports.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
@@ -55,11 +61,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-    <key>UIApplicationSupportsIndirectInputEvents</key>
-    <true/>
-    <key>GMSApiKey</key>
-    <string>AIzaSyAwJZ0luHRvQy9F7aIHYxpOXDP2KUFILHY</string>
 </dict>
 </plist>

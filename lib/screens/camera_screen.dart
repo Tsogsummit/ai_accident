@@ -135,24 +135,20 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _initializeCamera() async {
-    // Check and request camera permission
-    var cameraStatus = await Permission.camera.status;
-    if (cameraStatus.isDenied) {
-      cameraStatus = await Permission.camera.request();
-    }
-    
+    // Request camera permission - this will show native iOS dialog
+    var cameraStatus = await Permission.camera.request();
+
     if (cameraStatus.isPermanentlyDenied) {
       if (mounted) {
         setState(() {
           _permissionDenied = true;
           _error = 'Камерын зөвшөөрөл татгалзсан. Тохиргооноос зөвшөөрөл өгнө үү.';
         });
-        // Show dialog to open settings
         _showPermissionDialog('Камер', 'камерын');
       }
       return;
     }
-    
+
     if (!cameraStatus.isGranted) {
       if (mounted) {
         setState(() {
@@ -163,24 +159,20 @@ class _CameraScreenState extends State<CameraScreen>
       return;
     }
 
-    // Check and request microphone permission for video recording with audio
-    var microphoneStatus = await Permission.microphone.status;
-    if (microphoneStatus.isDenied) {
-      microphoneStatus = await Permission.microphone.request();
-    }
-    
+    // Request microphone permission - this will show native iOS dialog
+    var microphoneStatus = await Permission.microphone.request();
+
     if (microphoneStatus.isPermanentlyDenied) {
       if (mounted) {
         setState(() {
           _permissionDenied = true;
           _error = 'Микрофоны зөвшөөрөл татгалзсан. Тохиргооноос зөвшөөрөл өгнө үү.';
         });
-        // Show dialog to open settings
         _showPermissionDialog('Микрофон', 'микрофоны');
       }
       return;
     }
-    
+
     if (!microphoneStatus.isGranted) {
       if (mounted) {
         setState(() {
