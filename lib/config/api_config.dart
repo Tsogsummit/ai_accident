@@ -9,7 +9,7 @@ class ApiConfig {
   static const bool useGateway = false;
 
   // ⚠️ Өөрийн компьютерийн IP хаяг
-  static const String localIP = '192.168.1.176'; // ЭНИЙГ ӨӨРЧИЛ!
+  static const String localIP = '192.168.0.108'; // ЭНИЙГ ӨӨРЧИЛ!
 
   // Android Emulator: '10.0.2.2'
   // iOS Simulator: 'localhost'
@@ -207,6 +207,7 @@ class ApiConfig {
     }
   }
 
-  // ✅ Image Reporting Endpoint
-  static String get reportImageEndpoint => '$accidentServiceUrl/accidents/report-image';
+  // ✅ Image Reporting Endpoint (via report-service proxy)
+  static String get reportImageEndpoint =>
+      '$reportServiceUrl/reports/image';
 }

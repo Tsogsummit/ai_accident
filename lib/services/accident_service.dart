@@ -330,21 +330,47 @@ class AccidentService {
         ),
       });
 
-      print('📸 Uploading image report to: ${ApiConfig.reportImageEndpoint}');
+      final url = ApiConfig.reportImageEndpoint;
+      print('📸 Uploading image report to: $url');
 
-      final response = await _dio.post(
-        ApiConfig.reportImageEndpoint,
+      // Use Dio without baseUrl for this request since reportImageEndpoint is a full URL
+      final dio = Dio();
+      dio.options.connectTimeout = Duration(seconds: 30);
+      dio.options.receiveTimeout = Duration(seconds: 60);
+      dio.options.sendTimeout = Duration(seconds: 60);
+
+      // Add auth token
+      final token = await _authService.getAccessToken();
+
+      final response = await dio.post(
+        url,
         data: formData,
         onSendProgress: onProgress,
+        options: Options(
+          headers: {
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+        ),
       );
 
       // Clear cache after successful report
       clearCache();
 
-      if (response.data is Map && response.data['success'] == true) {
-        return Accident.fromJson(response.data['data']);
-      } else if (response.data is Map) {
-        return Accident.fromJson(response.data);
+      // Handle response - could be String or Map
+      dynamic responseData = response.data;
+      if (responseData is String) {
+        responseData = jsonDecode(responseData);
+      }
+
+      if (responseData is Map) {
+        final Map<String, dynamic> data = Map<String, dynamic>.from(responseData);
+        if (data['success'] == true && data['data'] != null) {
+          return Accident.fromJson(Map<String, dynamic>.from(data['data']));
+        } else if (data['data'] != null) {
+          return Accident.fromJson(Map<String, dynamic>.from(data['data']));
+        } else {
+          return Accident.fromJson(data);
+        }
       }
 
       throw Exception('Осол мэдээлэхэд алдаа гарлаа');
