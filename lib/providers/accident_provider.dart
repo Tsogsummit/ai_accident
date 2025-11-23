@@ -20,7 +20,7 @@ class AccidentProvider extends ChangeNotifier {
 
   Set<AccidentSource> _sourceFilters = {
     AccidentSource.user,
-    AccidentSource.camera
+    AccidentSource.camera,
   };
   Set<AccidentStatus> _statusFilters = {
     AccidentStatus.reported,
@@ -57,7 +57,10 @@ class AccidentProvider extends ChangeNotifier {
       _accidents.where((a) => a.status == AccidentStatus.resolved).length;
 
   // Load accidents
-  Future<void> loadAccidents({bool forceRefresh = false, bool userOnly = false}) async {
+  Future<void> loadAccidents({
+    bool forceRefresh = false,
+    bool userOnly = false,
+  }) async {
     if (_isLoading || _isRefreshing) return;
 
     _isLoading = true;
@@ -98,13 +101,11 @@ class AccidentProvider extends ChangeNotifier {
 
     try {
       print('🔄 Мэдээлэл шинэчилж байна...');
-      
-      _accidents = await _accidentService.getAllAccidents(
-        forceRefresh: true,
-      );
-      
+
+      _accidents = await _accidentService.getAllAccidents(forceRefresh: true);
+
       print('✅ ${_accidents.length} осол шинэчлэгдлээ');
-      
+
       _applyFilters();
       _lastFetchTime = DateTime.now();
       _error = '';
@@ -119,25 +120,25 @@ class AccidentProvider extends ChangeNotifier {
 
   // Load nearby accidents
   Future<void> loadNearbyAccidents(
-      double latitude,
-      double longitude, {
-        double radiusKm = 5.0,
-      }) async {
+    double latitude,
+    double longitude, {
+    double radiusKm = 5.0,
+  }) async {
     _isLoading = true;
     _error = '';
     notifyListeners();
 
     try {
       print('📍 Ойролцоох ослын мэдээлэл татаж байна...');
-      
+
       _accidents = await _accidentService.getNearbyAccidents(
         latitude,
         longitude,
         radiusKm: radiusKm,
       );
-      
+
       print('✅ ${_accidents.length} осол олдлоо');
-      
+
       _applyFilters();
       _lastFetchTime = DateTime.now();
     } catch (e) {
@@ -191,11 +192,13 @@ class AccidentProvider extends ChangeNotifier {
 
         // ✅ Clear cache to ensure fresh data from backend
         _accidentService.clearCache();
-        
+
         // ✅ Always reload from backend after successful upload
         // This ensures we get the complete accident data with proper timestamps
         // and any additional fields that might have been set by the backend
-        await Future.delayed(Duration(milliseconds: 500)); // Small delay to ensure backend has processed
+        await Future.delayed(
+          Duration(milliseconds: 500),
+        ); // Small delay to ensure backend has processed
         await loadAccidents(forceRefresh: true);
 
         _isUploading = false;
@@ -216,12 +219,63 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
+  // ✅ Report accident with Image (Gemini)
+  Future<Map<String, dynamic>?> reportImageAccident({
+    required File imageFile,
+    required double latitude,
+    required double longitude,
+    required String description,
+    Function(int sent, int total)? onProgress,
+  }) async {
+    try {
+      _isUploading = true;
+      _uploadProgress = 0.0;
+      _error = '';
+      notifyListeners();
+
+      print('📸 Зураг илгээж байна...');
+
+      final accident = await _accidentService.reportImageAccident(
+        latitude: latitude,
+        longitude: longitude,
+        description: description,
+        imageFile: imageFile,
+        onProgress: (sent, total) {
+          _uploadProgress = sent / total;
+          if (onProgress != null) {
+            onProgress(sent, total);
+          }
+          notifyListeners();
+        },
+      );
+
+      print('✅ Зураг амжилттай илгээгдлээ');
+      print('   AccidentId: ${accident.id}');
+
+      // Reload accidents
+      await loadAccidents(forceRefresh: true);
+
+      _isUploading = false;
+      _uploadProgress = 0.0;
+      notifyListeners();
+
+      return {'success': true, 'accidentId': accident.id, 'data': accident};
+    } catch (e) {
+      _error = e.toString();
+      print('❌ Зураг илгээхэд алдаа: $_error');
+      _isUploading = false;
+      _uploadProgress = 0.0;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   // Update accident
   Future<bool> updateAccident(
-      String accidentId, {
-        String? description,
-        AccidentStatus? status,
-      }) async {
+    String accidentId, {
+    String? description,
+    AccidentStatus? status,
+  }) async {
     try {
       _error = '';
 
@@ -357,10 +411,7 @@ class AccidentProvider extends ChangeNotifier {
 
   void resetFilters() {
     _sourceFilters = {AccidentSource.user, AccidentSource.camera};
-    _statusFilters = {
-      AccidentStatus.reported,
-      AccidentStatus.confirmed,
-    };
+    _statusFilters = {AccidentStatus.reported, AccidentStatus.confirmed};
     _applyFilters();
     notifyListeners();
   }

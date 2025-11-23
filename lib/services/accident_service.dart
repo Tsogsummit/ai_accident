@@ -72,17 +72,18 @@ class AccidentService {
           // Handle 401 errors (unauthorized)
           if (error.response?.statusCode == 401) {
             print('⚠️ 401 Unauthorized - Token хүчингүй');
-            
+
             // Try to refresh token
             final refreshed = await _authService.refreshAccessToken();
-            
+
             if (refreshed) {
               print('✅ Token шинэчлэгдлээ, дахин оролдож байна...');
-              
+
               // Retry request with new token
               final newToken = await _authService.getAccessToken();
-              error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
-              
+              error.requestOptions.headers['Authorization'] =
+                  'Bearer $newToken';
+
               try {
                 final response = await _dio.fetch(error.requestOptions);
                 return handler.resolve(response);
@@ -188,7 +189,7 @@ class AccidentService {
     } on DioException catch (e) {
       print('❌ DioException: ${e.type} - ${e.message}');
       print('❌ Response: ${e.response?.data}');
-      
+
       // If there's cached data and network error, return cached data
       if (_cachedAccidents != null && _isNetworkError(e)) {
         print('⚠️ Сүлжээний алдаа - кэш өгөгдөл ашиглаж байна');
@@ -291,6 +292,48 @@ class AccidentService {
 
       final response = await _dio.post(
         ApiConfig.accidentsEndpoint,
+        data: formData,
+        onSendProgress: onProgress,
+      );
+
+      // Clear cache after successful report
+      clearCache();
+
+      if (response.data is Map && response.data['success'] == true) {
+        return Accident.fromJson(response.data['data']);
+      } else if (response.data is Map) {
+        return Accident.fromJson(response.data);
+      }
+
+      throw Exception('Осол мэдээлэхэд алдаа гарлаа');
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ✅ Report accident with Image (Gemini)
+  Future<Accident> reportImageAccident({
+    required double latitude,
+    required double longitude,
+    required String description,
+    required File imageFile,
+    Function(int sent, int total)? onProgress,
+  }) async {
+    try {
+      FormData formData = FormData.fromMap({
+        'latitude': latitude,
+        'longitude': longitude,
+        'description': description,
+        'image': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: 'accident_img_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        ),
+      });
+
+      print('📸 Uploading image report to: ${ApiConfig.reportImageEndpoint}');
+
+      final response = await _dio.post(
+        ApiConfig.reportImageEndpoint,
         data: formData,
         onSendProgress: onProgress,
       );
