@@ -428,8 +428,16 @@ class _CameraScreenState extends State<CameraScreen>
         // Request failed
         String errorMsg = result?['error'] ?? 'Алдаа гарлаа';
 
+        // Check for rate limit (429)
+        if (result?['rateLimited'] == true) {
+          final remainingMinutes = result?['remainingMinutes'] ?? 15;
+          _showErrorDialog(
+            '⏱️ Та хэт олон мэдээлэл илгээж байна.\n\n'
+            '$remainingMinutes минутын дараа дахин оролдоно уу.',
+          );
+        }
         // Check for token/auth errors
-        if (errorMsg.contains('токен') || errorMsg.contains('401') || errorMsg.contains('403')) {
+        else if (errorMsg.contains('токен') || errorMsg.contains('401') || errorMsg.contains('403')) {
           _showErrorDialog('Нэвтрэлтийн хугацаа дууссан байна. Дахин нэвтрэнэ үү.');
         } else {
           _showErrorDialog(errorMsg);

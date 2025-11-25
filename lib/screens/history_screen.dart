@@ -1,9 +1,11 @@
-// lib/screens/history_screen.dart - ЗАСВАРЛАСАН (TOKEN FIX)
+// lib/screens/history_screen.dart - Updated with Submissions
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';
 import '../models/accident.dart';
+import '../models/submission.dart';
 import '../services/auth_service.dart';
+import '../services/submission_service.dart';
 import '../widgets/false_report_dialog.dart';
 import 'login_screen.dart';
 
@@ -20,8 +22,10 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
   bool get wantKeepAlive => true;
 
   final AuthService _authService = AuthService();
-  String _selectedFilter = 'all'; // all, user, camera
+  final SubmissionService _submissionService = SubmissionService();
+  String _selectedFilter = 'all'; // all, accidents, submissions
   bool _isInitialized = false;
+  List<Submission> _submissions = [];
 
   @override
   void initState() {
@@ -62,11 +66,30 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
       final provider = Provider.of<AccidentProvider>(context, listen: false);
 
       try {
-        await provider.loadAccidents(userOnly: true);
+        // Load both accidents and submissions in parallel
+        await Future.wait([
+          provider.loadAccidents(userOnly: true),
+          _loadSubmissions(),
+        ]);
       } catch (e) {
-        print('❌ Load accidents error: $e');
+        print('❌ Load data error: $e');
         // Don't navigate away on error, just show error in UI
       }
+    }
+  }
+
+  Future<void> _loadSubmissions() async {
+    try {
+      final submissions = await _submissionService.getUserSubmissions();
+      if (mounted) {
+        setState(() {
+          _submissions = submissions;
+        });
+      }
+      print('✅ Loaded ${submissions.length} submissions');
+    } catch (e) {
+      print('❌ Load submissions error: $e');
+      // Don't throw - just keep empty list
     }
   }
 
@@ -76,7 +99,10 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
       final provider = Provider.of<AccidentProvider>(context, listen: false);
 
       try {
-        await provider.loadAccidents(forceRefresh: true, userOnly: true);
+        await Future.wait([
+          provider.loadAccidents(forceRefresh: true, userOnly: true),
+          _loadSubmissions(),
+        ]);
 
         // Clear any previous errors
         provider.clearError();
@@ -137,22 +163,22 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                 ),
               ),
               PopupMenuItem(
-                value: 'user',
+                value: 'accidents',
                 child: Row(
                   children: [
-                    Icon(Icons.person, size: 20),
+                    Icon(Icons.warning, size: 20),
                     SizedBox(width: 8),
-                    Text('Хэрэглэгчээс'),
+                    Text('Баталгаажсан ослууд'),
                   ],
                 ),
               ),
               PopupMenuItem(
-                value: 'camera',
+                value: 'submissions',
                 child: Row(
                   children: [
-                    Icon(Icons.videocam, size: 20),
+                    Icon(Icons.image, size: 20),
                     SizedBox(width: 8),
-                    Text('Бичлэгээс'),
+                    Text('Миний илгээсэн'),
                   ],
                 ),
               ),
@@ -258,18 +284,25 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
             );
           }
 
-          // Filter accidents
-          List<Accident> accidents = provider.allAccidents;
-          if (_selectedFilter == 'user') {
-            accidents = accidents.where((a) => a.source == AccidentSource.user).toList();
-          } else if (_selectedFilter == 'camera') {
-            accidents = accidents.where((a) => a.source == AccidentSource.camera).toList();
+          // Build combined list
+          List<dynamic> items = [];
+
+          if (_selectedFilter == 'all' || _selectedFilter == 'accidents') {
+            items.addAll(provider.allAccidents);
+          }
+
+          if (_selectedFilter == 'all' || _selectedFilter == 'submissions') {
+            items.addAll(_submissions);
           }
 
           // Sort by timestamp (newest first)
-          accidents.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          items.sort((a, b) {
+            DateTime aTime = a is Accident ? a.timestamp : (a as Submission).createdAt;
+            DateTime bTime = b is Accident ? b.timestamp : (b as Submission).createdAt;
+            return bTime.compareTo(aTime);
+          });
 
-          if (accidents.isEmpty) {
+          if (items.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -278,7 +311,7 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   SizedBox(height: 16),
                   Text('Түүх хоосон байна', style: TextStyle(fontSize: 18)),
                   SizedBox(height: 8),
-                  Text('Ослын мэдээлэл одоогоор байхгүй байна', style: TextStyle(color: Colors.grey)),
+                  Text('Мэдээлэл одоогоор байхгүй байна', style: TextStyle(color: Colors.grey)),
                 ],
               ),
             );
@@ -288,10 +321,15 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
             onRefresh: _refreshData,
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: accidents.length,
+              itemCount: items.length,
               itemBuilder: (context, index) {
-                final accident = accidents[index];
-                return _buildAccidentCard(context, accident);
+                final item = items[index];
+                if (item is Accident) {
+                  return _buildAccidentCard(context, item);
+                } else if (item is Submission) {
+                  return _buildSubmissionCard(context, item);
+                }
+                return SizedBox.shrink();
               },
             ),
           );
@@ -411,6 +449,115 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   style: TextStyle(
                     fontSize: 11,
                     color: _getStatusColor(accident.status),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubmissionCard(BuildContext context, Submission submission) {
+    final statusColor = _getSubmissionStatusColor(submission.status);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showSubmissionDetails(context, submission),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Row(
+                children: [
+                  // Image icon
+                  Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.image,
+                      color: statusColor,
+                      size: 20,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+
+                  // Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Илгээсэн зураг',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                        Text(
+                          submission.statusMongolian,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Status badge
+                  if (submission.isRejected)
+                    Icon(Icons.cancel, color: Colors.red, size: 24),
+                ],
+              ),
+
+              SizedBox(height: 12),
+
+              // Description
+              if (submission.description.isNotEmpty) ...[
+                Text(
+                  submission.description,
+                  style: TextStyle(fontSize: 14),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: 8),
+              ],
+
+              // Footer row
+              Row(
+                children: [
+                  Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                  SizedBox(width: 4),
+                  Text(
+                    _formatDateTime(submission.createdAt),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+
+              // Status
+              SizedBox(height: 8),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  submission.statusMongolian,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: statusColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -620,5 +767,169 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
       case AccidentStatus.falseAlarm:
         return Colors.red;
     }
+  }
+
+  Color _getSubmissionStatusColor(String status) {
+    switch (status) {
+      case 'analyzing':
+        return Colors.orange;
+      case 'accident_created':
+        return Colors.green;
+      case 'not_accident':
+        return Colors.grey;
+      case 'error':
+        return Colors.red;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  void _showSubmissionDetails(BuildContext context, Submission submission) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) {
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: SingleChildScrollView(
+              controller: scrollController,
+              padding: EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+
+                  // Title
+                  Row(
+                    children: [
+                      Icon(Icons.image, color: _getSubmissionStatusColor(submission.status), size: 28),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Илгээсэн зураг',
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'ID: ${submission.id}',
+                              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 20),
+
+                  // Image preview (if available)
+                  if (submission.imageUrl.isNotEmpty) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        submission.imageUrl,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 200,
+                            color: Colors.grey[200],
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                                  SizedBox(height: 8),
+                                  Text('Зураг ачаалагдсангүй', style: TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                  ],
+
+                  // Details
+                  _buildDetailRow('Төлөв', submission.statusMongolian, Icons.info, _getSubmissionStatusColor(submission.status)),
+                  _buildDetailRow('Огноо цаг', _formatDateTime(submission.createdAt), Icons.access_time, Colors.grey[700]!),
+                  _buildDetailRow('Байршил', '${submission.latitude.toStringAsFixed(6)}, ${submission.longitude.toStringAsFixed(6)}', Icons.location_on, Colors.red),
+
+                  if (submission.description.isNotEmpty) ...[
+                    SizedBox(height: 16),
+                    Text('Тайлбар:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    SizedBox(height: 8),
+                    Text(submission.description, style: TextStyle(fontSize: 14)),
+                  ],
+
+                  if (submission.errorMessage != null) ...[
+                    SizedBox(height: 16),
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              submission.errorMessage!,
+                              style: TextStyle(color: Colors.red[900]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  SizedBox(height: 24),
+
+                  // Close button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Хаах'),
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: MediaQuery.of(context).padding.bottom),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }

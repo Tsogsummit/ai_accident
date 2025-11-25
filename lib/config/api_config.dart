@@ -11,7 +11,7 @@ class ApiConfig {
   // 1. Өөрийн компьютерийн IP хаягийг энд бичнэ (cmd -> ipconfig)
   // static const String localIP = '192.168.1.5';
   static const String localIP =
-      '192.168.0.40'; // Updated to correct local IP // ЭНИЙГ ӨӨРЧИЛ!
+      '192.168.0.108'; // Updated to correct local IP // ЭНИЙГ ӨӨРЧИЛ!
 
   // Android Emulator: '10.0.2.2'
   // iOS Simulator: 'localhost'

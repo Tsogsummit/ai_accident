@@ -55,7 +55,12 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   static const double _minZoom = 5.0;
   static const double _maxZoom = 20.0;
 
+  // Map type and traffic settings
+  bool _useGoogleMaps = false; // Toggle between Apple Maps and Google Maps on iOS
+  bool _showTraffic = false; // Traffic flow toggle for Google Maps
+
   bool get _isIOS => Platform.isIOS;
+  bool get _shouldUseGoogleMaps => !_isIOS || _useGoogleMaps;
 
   @override
   bool get wantKeepAlive => true;
@@ -137,26 +142,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   void _updateMarkers(List<Accident> accidents) {
     if (!_isMapReady) return;
 
-    if (_isIOS) {
-      Set<apple_maps.Annotation> newAnnotations = {};
-      for (final accident in accidents) {
-        newAnnotations.add(
-          apple_maps.Annotation(
-            annotationId: apple_maps.AnnotationId('accident_${accident.id}'),
-            position: apple_maps.LatLng(accident.latitude, accident.longitude),
-            infoWindow: apple_maps.InfoWindow(
-              title: accident.statusMongolian,
-              snippet: _formatTime(accident.timestamp),
-              onTap: () => _showAccidentDetails(accident),
-            ),
-          ),
-        );
-      }
-      setState(() {
-        _appleAnnotations = newAnnotations;
-        _lastAccidents = accidents;
-      });
-    } else {
+    if (_shouldUseGoogleMaps) {
       Set<google_maps.Marker> newMarkers = {};
       for (final accident in accidents) {
         newMarkers.add(
@@ -175,6 +161,25 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
       }
       setState(() {
         _googleMarkers = newMarkers;
+        _lastAccidents = accidents;
+      });
+    } else {
+      Set<apple_maps.Annotation> newAnnotations = {};
+      for (final accident in accidents) {
+        newAnnotations.add(
+          apple_maps.Annotation(
+            annotationId: apple_maps.AnnotationId('accident_${accident.id}'),
+            position: apple_maps.LatLng(accident.latitude, accident.longitude),
+            infoWindow: apple_maps.InfoWindow(
+              title: accident.statusMongolian,
+              snippet: _formatTime(accident.timestamp),
+              onTap: () => _showAccidentDetails(accident),
+            ),
+          ),
+        );
+      }
+      setState(() {
+        _appleAnnotations = newAnnotations;
         _lastAccidents = accidents;
       });
     }
@@ -215,16 +220,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     try {
       final targetZoom = zoom ?? _currentZoom.clamp(_minZoom, _maxZoom);
 
-      if (_isIOS && _appleMapController != null) {
-        await _appleMapController!.animateCamera(
-          apple_maps.CameraUpdate.newCameraPosition(
-            apple_maps.CameraPosition(
-              target: apple_maps.LatLng(lat, lng),
-              zoom: targetZoom,
-            ),
-          ),
-        );
-      } else if (_googleMapController != null) {
+      if (_shouldUseGoogleMaps && _googleMapController != null) {
         await _googleMapController!.animateCamera(
           google_maps.CameraUpdate.newCameraPosition(
             google_maps.CameraPosition(
@@ -232,6 +228,15 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
               zoom: targetZoom,
               tilt: _currentGoogleCameraPosition?.tilt ?? 0.0,
               bearing: _currentGoogleCameraPosition?.bearing ?? 0.0,
+            ),
+          ),
+        );
+      } else if (_appleMapController != null) {
+        await _appleMapController!.animateCamera(
+          apple_maps.CameraUpdate.newCameraPosition(
+            apple_maps.CameraPosition(
+              target: apple_maps.LatLng(lat, lng),
+              zoom: targetZoom,
             ),
           ),
         );
@@ -263,19 +268,19 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
 
   void _zoomIn() {
     if (_isAnimating) return;
-    if (_isIOS && _appleMapController != null) {
-      _appleMapController!.animateCamera(apple_maps.CameraUpdate.zoomIn());
-    } else if (_googleMapController != null) {
+    if (_shouldUseGoogleMaps && _googleMapController != null) {
       _googleMapController!.animateCamera(google_maps.CameraUpdate.zoomIn());
+    } else if (_appleMapController != null) {
+      _appleMapController!.animateCamera(apple_maps.CameraUpdate.zoomIn());
     }
   }
 
   void _zoomOut() {
     if (_isAnimating) return;
-    if (_isIOS && _appleMapController != null) {
-      _appleMapController!.animateCamera(apple_maps.CameraUpdate.zoomOut());
-    } else if (_googleMapController != null) {
+    if (_shouldUseGoogleMaps && _googleMapController != null) {
       _googleMapController!.animateCamera(google_maps.CameraUpdate.zoomOut());
+    } else if (_appleMapController != null) {
+      _appleMapController!.animateCamera(apple_maps.CameraUpdate.zoomOut());
     }
   }
 
@@ -489,6 +494,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
       zoomControlsEnabled: false,
       mapToolbarEnabled: false,
       compassEnabled: true,
+      trafficEnabled: _showTraffic, // ✅ Traffic flow toggle
       minMaxZoomPreference: google_maps.MinMaxZoomPreference(_minZoom, _maxZoom),
       // Enable smooth gestures
       zoomGesturesEnabled: true,
@@ -554,7 +560,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
           return Stack(
             children: [
               // Platform-specific map
-              _isIOS ? _buildAppleMap() : _buildGoogleMap(),
+              _shouldUseGoogleMaps ? _buildGoogleMap() : _buildAppleMap(),
 
               // COMPACT STATISTICS - Single Row
               Positioned(
@@ -663,6 +669,46 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
             backgroundColor: Colors.green,
             child: Icon(Icons.refresh),
           ),
+          // ✅ Traffic toggle (only show when using Google Maps)
+          if (_shouldUseGoogleMaps) ...[
+            SizedBox(height: 12),
+            FloatingActionButton(
+              heroTag: "traffic",
+              onPressed: () {
+                setState(() {
+                  _showTraffic = !_showTraffic;
+                });
+              },
+              mini: true,
+              backgroundColor: _showTraffic ? Colors.orange : Colors.grey[700],
+              tooltip: _showTraffic ? 'Замын хөдөлгөөн нуух' : 'Замын хөдөлгөөн харуулах',
+              child: Icon(
+                Icons.traffic,
+                color: _showTraffic ? Colors.white : Colors.grey[400],
+              ),
+            ),
+          ],
+          // ✅ Map type toggle (only show on iOS)
+          if (_isIOS) ...[
+            SizedBox(height: 12),
+            FloatingActionButton(
+              heroTag: "map_type",
+              onPressed: () {
+                setState(() {
+                  _useGoogleMaps = !_useGoogleMaps;
+                  _isMapReady = false; // Reset map ready state
+                });
+                // Reload accidents after map type change
+                Future.delayed(Duration(milliseconds: 500), () {
+                  _loadAccidents();
+                });
+              },
+              mini: true,
+              backgroundColor: Colors.purple,
+              tooltip: _useGoogleMaps ? 'Apple газрын зураг' : 'Google газрын зураг',
+              child: Icon(_useGoogleMaps ? Icons.apple : Icons.map),
+            ),
+          ],
         ],
       ),
     );

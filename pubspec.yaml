@@ -35,7 +35,6 @@ dependencies:
   apple_maps_flutter: ^1.2.0
   geolocator: ^10.1.0
   camera: ^0.10.5+5
-  video_player: ^2.8.1
   image_picker: ^1.0.4
   http: ^1.1.0
   dio: ^5.3.2

@@ -334,15 +334,25 @@ class AccidentService {
       final url = ApiConfig.reportImageEndpoint;
       print('📸 Uploading image report to: $url');
 
-      // Use main _dio instance to benefit from interceptors (auth, retry, logs)
-      // We increase timeout specifically for AI analysis
-      final response = await _dio.post(
+      // Create separate Dio instance WITHOUT retry for multipart uploads
+      final dio = Dio(BaseOptions(
+        connectTimeout: Duration(seconds: 30),
+        sendTimeout: Duration(seconds: 60),
+        receiveTimeout: Duration(seconds: 60),
+      ));
+
+      // Add auth token manually
+      final token = await _authService.getAccessToken();
+
+      final response = await dio.post(
         url,
         data: formData,
         onSendProgress: onProgress,
         options: Options(
-          sendTimeout: Duration(seconds: 60),
-          receiveTimeout: Duration(seconds: 60),
+          headers: {
+            if (token != null) 'Authorization': 'Bearer $token',
+            'Content-Type': 'multipart/form-data',
+          },
         ),
       );
 

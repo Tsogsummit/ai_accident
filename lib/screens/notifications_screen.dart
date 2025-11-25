@@ -60,16 +60,17 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       
       print('📥 Notification Result: ${result['success']}');
       
-      // Also load confirmed accidents to show even if no notifications
-      print('📬 Loading confirmed accidents...');
+      // Load ALL confirmed accidents (nearby from any user)
+      print('📬 Loading all confirmed accidents...');
       List<Accident> confirmedAccidents = [];
       try {
         confirmedAccidents = await _accidentService.getAllAccidents(
           status: AccidentStatus.confirmed,
-          limit: 50,
+          limit: 100,
           forceRefresh: true,
+          userOnly: false, // Show accidents from ALL users
         );
-        print('✅ Confirmed accidents loaded: ${confirmedAccidents.length}');
+        print('✅ All confirmed accidents loaded: ${confirmedAccidents.length}');
       } catch (e) {
         print('⚠️ Failed to load confirmed accidents: $e');
         // Don't fail the whole load if this fails
@@ -99,13 +100,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       }
     } catch (e) {
       print('❌ Load notifications exception: $e');
-      // Try to load confirmed accidents even if notifications fail
+      // Try to load ALL confirmed accidents even if notifications fail
       List<Accident> confirmedAccidents = [];
       try {
         confirmedAccidents = await _accidentService.getAllAccidents(
           status: AccidentStatus.confirmed,
-          limit: 50,
+          limit: 100,
           forceRefresh: true,
+          userOnly: false, // Show accidents from ALL users
         );
         print('✅ Loaded ${confirmedAccidents.length} confirmed accidents as fallback');
       } catch (accidentError) {

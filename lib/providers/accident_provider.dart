@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import '../models/accident.dart';
 import '../services/accident_service.dart';
-import '../services/video_service.dart';
 import '../services/false_report_service.dart';
 
 class AccidentProvider extends ChangeNotifier {
@@ -40,7 +39,6 @@ class AccidentProvider extends ChangeNotifier {
   Set<AccidentStatus> get statusFilters => _statusFilters;
 
   final AccidentService _accidentService = AccidentService();
-  final VideoService _videoService = VideoService();
 
   // Statistics
   int get totalAccidents => _accidents.length;
@@ -149,73 +147,6 @@ class AccidentProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
-    }
-  }
-
-  // ✅✅✅ FIXED: VIDEO UPLOAD with proper response handling
-  Future<Map<String, dynamic>?> uploadVideoAccident({
-    required File videoFile,
-    required double latitude,
-    required double longitude,
-    required String description,
-    Function(int sent, int total)? onProgress,
-  }) async {
-    try {
-      _isUploading = true;
-      _uploadProgress = 0.0;
-      _error = '';
-      notifyListeners();
-
-      print('📹 Видео upload эхэллээ...');
-
-      // Call VideoService
-      final result = await _videoService.uploadVideo(
-        videoFile: videoFile,
-        latitude: latitude,
-        longitude: longitude,
-        description: description,
-        onProgress: (sent, total) {
-          _uploadProgress = sent / total;
-          if (onProgress != null) {
-            onProgress(sent, total);
-          }
-          notifyListeners();
-        },
-      );
-
-      print('✅ Response received: $result');
-
-      if (result['success'] == true) {
-        print('✅ Video амжилттай илгээгдлээ');
-        print('   VideoId: ${result['videoId']}');
-        print('   AccidentId: ${result['accidentId']}');
-
-        // ✅ Clear cache to ensure fresh data from backend
-        _accidentService.clearCache();
-
-        // ✅ Always reload from backend after successful upload
-        // This ensures we get the complete accident data with proper timestamps
-        // and any additional fields that might have been set by the backend
-        await Future.delayed(
-          Duration(milliseconds: 500),
-        ); // Small delay to ensure backend has processed
-        await loadAccidents(forceRefresh: true);
-
-        _isUploading = false;
-        _uploadProgress = 0.0;
-        notifyListeners();
-
-        return result;
-      } else {
-        throw Exception(result['error'] ?? 'Видео илгээлт амжилтгүй');
-      }
-    } catch (e) {
-      _error = 'Видео илгээхэд алдаа гарлаа: ${e.toString()}';
-      print('❌ Видео илгээхэд алдаа: $_error');
-      _isUploading = false;
-      _uploadProgress = 0.0;
-      notifyListeners();
-      rethrow;
     }
   }
 
@@ -456,7 +387,6 @@ class AccidentProvider extends ChangeNotifier {
   @override
   void dispose() {
     _accidentService.dispose();
-    _videoService.dispose();
     super.dispose();
   }
 }
