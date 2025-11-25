@@ -312,7 +312,8 @@ class AccidentService {
   }
 
   // ✅ Report accident with Image (Gemini)
-  Future<Accident> reportImageAccident({
+  // Returns Map with: {success, isAccident, data/analysis, message}
+  Future<Map<String, dynamic>> reportImageAccidentRaw({
     required double latitude,
     required double longitude,
     required String description,
@@ -333,23 +334,15 @@ class AccidentService {
       final url = ApiConfig.reportImageEndpoint;
       print('📸 Uploading image report to: $url');
 
-      // Use Dio without baseUrl for this request since reportImageEndpoint is a full URL
-      final dio = Dio();
-      dio.options.connectTimeout = Duration(seconds: 30);
-      dio.options.receiveTimeout = Duration(seconds: 60);
-      dio.options.sendTimeout = Duration(seconds: 60);
-
-      // Add auth token
-      final token = await _authService.getAccessToken();
-
-      final response = await dio.post(
+      // Use main _dio instance to benefit from interceptors (auth, retry, logs)
+      // We increase timeout specifically for AI analysis
+      final response = await _dio.post(
         url,
         data: formData,
         onSendProgress: onProgress,
         options: Options(
-          headers: {
-            if (token != null) 'Authorization': 'Bearer $token',
-          },
+          sendTimeout: Duration(seconds: 60),
+          receiveTimeout: Duration(seconds: 60),
         ),
       );
 
@@ -363,20 +356,47 @@ class AccidentService {
       }
 
       if (responseData is Map) {
-        final Map<String, dynamic> data = Map<String, dynamic>.from(responseData);
-        if (data['success'] == true && data['data'] != null) {
-          return Accident.fromJson(Map<String, dynamic>.from(data['data']));
-        } else if (data['data'] != null) {
-          return Accident.fromJson(Map<String, dynamic>.from(data['data']));
-        } else {
-          return Accident.fromJson(data);
-        }
+        return Map<String, dynamic>.from(responseData);
       }
 
-      throw Exception('Осол мэдээлэхэд алдаа гарлаа');
+      throw Exception('Буруу хариу ирлээ');
     } on DioException catch (e) {
       throw _handleError(e);
     }
+  }
+
+  // Legacy method for backward compatibility
+  Future<Accident> reportImageAccident({
+    required double latitude,
+    required double longitude,
+    required String description,
+    required File imageFile,
+    Function(int sent, int total)? onProgress,
+  }) async {
+    final result = await reportImageAccidentRaw(
+      latitude: latitude,
+      longitude: longitude,
+      description: description,
+      imageFile: imageFile,
+      onProgress: onProgress,
+    );
+
+    // Check if accident was created
+    if (result['success'] == true && result['data'] != null) {
+      final data = result['data'];
+
+      // If it's accident data (has id), return Accident
+      if (data is Map && data['id'] != null) {
+        return Accident.fromJson(Map<String, dynamic>.from(data));
+      }
+
+      // If no accident (isAccident = false), throw with message
+      if (data['isAccident'] == false) {
+        throw Exception(result['message'] ?? 'Осол илрээгүй');
+      }
+    }
+
+    throw Exception(result['error'] ?? 'Осол мэдээлэхэд алдаа гарлаа');
   }
 
   // ✅ Update accident

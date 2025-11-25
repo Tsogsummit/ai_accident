@@ -8,8 +8,10 @@ class ApiConfig {
 
   static const bool useGateway = false;
 
-  // ⚠️ Өөрийн компьютерийн IP хаяг
-  static const String localIP = '192.168.0.108'; // ЭНИЙГ ӨӨРЧИЛ!
+  // 1. Өөрийн компьютерийн IP хаягийг энд бичнэ (cmd -> ipconfig)
+  // static const String localIP = '192.168.1.5';
+  static const String localIP =
+      '192.168.0.40'; // Updated to correct local IP // ЭНИЙГ ӨӨРЧИЛ!
 
   // Android Emulator: '10.0.2.2'
   // iOS Simulator: 'localhost'
@@ -208,6 +210,8 @@ class ApiConfig {
   }
 
   // ✅ Image Reporting Endpoint (via report-service proxy)
-  static String get reportImageEndpoint =>
-      '$reportServiceUrl/reports/image';
+  static String get reportImageEndpoint => '$reportServiceUrl/reports/image';
+
+  // ✅ User submissions history
+  static String get submissionsEndpoint => '$reportServiceUrl/reports/submissions';
 }

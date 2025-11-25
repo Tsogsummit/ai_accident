@@ -5,6 +5,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
+import '../services/auth_service.dart'; // Add import at top
+
 import 'dart:io';
 import '../providers/accident_provider.dart';
 
@@ -355,33 +357,102 @@ class _CameraScreenState extends State<CameraScreen>
       Navigator.pop(context); // Close loading
 
       if (result != null && result['success'] == true) {
-        final analysis =
-            result['data'].description; // Assuming description holds AI result
+        final data = result['data'];
 
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green),
-                SizedBox(width: 8),
-                Text('Осол бүртгэгдлээ'),
+        // Check if accident was detected
+        if (data != null && data['isAccident'] == false) {
+          // No accident detected
+          final analysis = data['analysis'];
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('Осол илрээгүй'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(result['message'] ?? 'Зураг шалгагдлаа'),
+                  if (analysis != null) ...[
+                    SizedBox(height: 12),
+                    Text('AI: ${analysis['description'] ?? ''}',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('ОК'),
+                ),
               ],
             ),
-            content: Text('AI Хариу: $analysis'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('ОК'),
+          );
+        } else {
+          // Accident detected and created
+          String description = '';
+          if (data is Map && data['description'] != null) {
+            description = data['description'];
+          } else if (result['data'] != null && result['data'].description != null) {
+            description = result['data'].description;
+          }
+
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green),
+                  SizedBox(width: 8),
+                  Text('Осол бүртгэгдлээ'),
+                ],
               ),
-            ],
-          ),
-        );
+              content: Text(description.isNotEmpty
+                  ? 'AI Хариу: $description'
+                  : 'Осол амжилттай бүртгэгдлээ'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('ОК'),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        // Request failed
+        String errorMsg = result?['error'] ?? 'Алдаа гарлаа';
+
+        // Check for token/auth errors
+        if (errorMsg.contains('токен') || errorMsg.contains('401') || errorMsg.contains('403')) {
+          _showErrorDialog('Нэвтрэлтийн хугацаа дууссан байна. Дахин нэвтрэнэ үү.');
+        } else {
+          _showErrorDialog(errorMsg);
+        }
       }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context); // Close loading
-      _showErrorDialog('Зураг илгээхэд алдаа: $e');
+
+      String errorStr = e.toString();
+      String userMessage;
+
+      if (errorStr.contains('токен') || errorStr.contains('Хүчингүй') || errorStr.contains('403') || errorStr.contains('401')) {
+        userMessage = 'Нэвтрэлтийн хугацаа дууссан. Дахин нэвтрэнэ үү.';
+      } else if (errorStr.contains('Connection') || errorStr.contains('timeout') || errorStr.contains('сүлжээ')) {
+        userMessage = 'Сүлжээний алдаа. Интернет холболтоо шалгана уу.';
+      } else if (errorStr.contains('500') || errorStr.contains('сервер')) {
+        userMessage = 'Серверийн алдаа. Түр хүлээгээд дахин оролдоно уу.';
+      } else {
+        userMessage = 'Зураг илгээхэд алдаа гарлаа. Дахин оролдоно уу.';
+      }
+
+      _showErrorDialog(userMessage);
     }
   }
 
@@ -400,6 +471,21 @@ class _CameraScreenState extends State<CameraScreen>
         ),
         content: SingleChildScrollView(child: Text(message)),
         actions: [
+          if (message.contains('эрх') || message.contains('403'))
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                final authService = Provider.of<AuthService>(
+                  context,
+                  listen: false,
+                );
+                await authService.logout();
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/login', (route) => false);
+              },
+              child: Text('Гарах', style: TextStyle(color: Colors.red)),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text('Хаах'),

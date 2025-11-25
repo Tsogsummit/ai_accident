@@ -81,7 +81,7 @@ class AccidentProvider extends ChangeNotifier {
       _lastFetchTime = DateTime.now();
       _error = '';
     } catch (e) {
-      _error = e.toString();
+      _error = 'Ослын мэдээлэл татахад алдаа гарлаа: ${e.toString()}';
       print('❌ Ослын мэдээлэл ачаалахад алдаа: $_error');
       _accidents = [];
       _applyFilters();
@@ -110,7 +110,7 @@ class AccidentProvider extends ChangeNotifier {
       _lastFetchTime = DateTime.now();
       _error = '';
     } catch (e) {
-      _error = e.toString();
+      _error = 'Мэдээлэл шинэчлэхэд алдаа гарлаа: ${e.toString()}';
       print('❌ Мэдээлэл шинэчлэхэд алдаа: $_error');
     } finally {
       _isRefreshing = false;
@@ -142,7 +142,7 @@ class AccidentProvider extends ChangeNotifier {
       _applyFilters();
       _lastFetchTime = DateTime.now();
     } catch (e) {
-      _error = e.toString();
+      _error = 'Ойролцоох ослын мэдээлэл авахад алдаа гарлаа: ${e.toString()}';
       print('❌ Ойр дахь ослын мэдээлэл ачаалахад алдаа: $_error');
       _accidents = [];
       _applyFilters();
@@ -210,7 +210,7 @@ class AccidentProvider extends ChangeNotifier {
         throw Exception(result['error'] ?? 'Видео илгээлт амжилтгүй');
       }
     } catch (e) {
-      _error = e.toString();
+      _error = 'Видео илгээхэд алдаа гарлаа: ${e.toString()}';
       print('❌ Видео илгээхэд алдаа: $_error');
       _isUploading = false;
       _uploadProgress = 0.0;
@@ -235,7 +235,8 @@ class AccidentProvider extends ChangeNotifier {
 
       print('📸 Зураг илгээж байна...');
 
-      final accident = await _accidentService.reportImageAccident(
+      // Use raw method to get full response
+      final result = await _accidentService.reportImageAccidentRaw(
         latitude: latitude,
         longitude: longitude,
         description: description,
@@ -249,24 +250,40 @@ class AccidentProvider extends ChangeNotifier {
         },
       );
 
-      print('✅ Зураг амжилттай илгээгдлээ');
-      print('   AccidentId: ${accident.id}');
-
-      // Reload accidents
-      await loadAccidents(forceRefresh: true);
-
       _isUploading = false;
       _uploadProgress = 0.0;
       notifyListeners();
 
-      return {'success': true, 'accidentId': accident.id, 'data': accident};
+      // Check if accident was created
+      if (result['success'] == true) {
+        final data = result['data'];
+
+        if (data != null && data is Map && data['id'] != null) {
+          // Accident was created
+          print('✅ Осол бүртгэгдлээ. ID: ${data['id']}');
+          await loadAccidents(forceRefresh: true);
+          return result;
+        } else if (data != null && data['isAccident'] == false) {
+          // No accident detected
+          print('ℹ️ Осол илрээгүй');
+          return result;
+        }
+      }
+
+      // Return result as-is
+      return result;
     } catch (e) {
       _error = e.toString();
       print('❌ Зураг илгээхэд алдаа: $_error');
       _isUploading = false;
       _uploadProgress = 0.0;
       notifyListeners();
-      rethrow;
+
+      // Return error as map instead of rethrowing
+      return {
+        'success': false,
+        'error': _error,
+      };
     }
   }
 
@@ -294,7 +311,7 @@ class AccidentProvider extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = 'Ослын мэдээлэл шинэчлэхэд алдаа гарлаа: ${e.toString()}';
       notifyListeners();
       return false;
     }
@@ -318,7 +335,7 @@ class AccidentProvider extends ChangeNotifier {
       }
       return success;
     } catch (e) {
-      _error = e.toString();
+      _error = 'Ослыг баталгаажуулахад алдаа гарлаа: ${e.toString()}';
       notifyListeners();
       return false;
     }
@@ -351,7 +368,7 @@ class AccidentProvider extends ChangeNotifier {
       }
       return success;
     } catch (e) {
-      _error = e.toString();
+      _error = 'Худал дуудлага мэдээлэхэд алдаа гарлаа: ${e.toString()}';
       notifyListeners();
       return false;
     }
@@ -370,7 +387,7 @@ class AccidentProvider extends ChangeNotifier {
       }
       return success;
     } catch (e) {
-      _error = e.toString();
+      _error = 'Осол устгахад алдаа гарлаа: ${e.toString()}';
       notifyListeners();
       return false;
     }
