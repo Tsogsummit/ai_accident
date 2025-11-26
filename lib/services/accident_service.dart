@@ -310,11 +310,13 @@ class AccidentService {
       final url = ApiConfig.reportImageEndpoint;
       print('Uploading image report to: $url');
 
-      final dio = Dio(BaseOptions(
-        connectTimeout: Duration(seconds: 30),
-        sendTimeout: Duration(seconds: 60),
-        receiveTimeout: Duration(seconds: 60),
-      ));
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: Duration(seconds: 30),
+          sendTimeout: Duration(seconds: 60),
+          receiveTimeout: Duration(seconds: 60),
+        ),
+      );
 
       final token = await _authService.getAccessToken();
 
@@ -370,7 +372,9 @@ class AccidentService {
       }
 
       if (data['isAccident'] == false) {
-        throw Exception(result['message'] ?? 'No accident detected in the image');
+        throw Exception(
+          result['message'] ?? 'No accident detected in the image',
+        );
       }
     }
 
@@ -562,7 +566,6 @@ class AccidentService {
         return 'Security certificate error. Please update the app or contact support.';
 
       case DioExceptionType.unknown:
-      default:
         if (e.error is SocketException) {
           return 'Network connection error. Please check your WiFi or mobile data and try again.';
         }

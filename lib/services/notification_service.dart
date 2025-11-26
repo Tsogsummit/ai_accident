@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
 import '../config/api_config.dart';
@@ -82,8 +81,6 @@ class NotificationService {
     bool unreadOnly = false,
   }) async {
     try {
-      print('Loading notifications: userId=$userId');
-
       final response = await _dio.get(
         '/notifications',
         queryParameters: {
@@ -130,9 +127,7 @@ class NotificationService {
     try {
       print('Marking notification as read: id=$notificationId');
 
-      final response = await _dio.put(
-        '/notifications/$notificationId/read',
-      );
+      final response = await _dio.put('/notifications/$notificationId/read');
 
       if (response.statusCode == 200 && response.data['success']) {
         print('Notification marked as read');
@@ -236,10 +231,7 @@ class NotificationService {
     try {
       final response = await _dio.post(
         '/notifications/register-token',
-        data: {
-          'userId': userId,
-          'fcmToken': fcmToken,
-        },
+        data: {'userId': userId, 'fcmToken': fcmToken},
       );
 
       if (response.statusCode == 200 && response.data['success']) {
@@ -282,7 +274,8 @@ class NotificationService {
 
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
-        final message = e.response?.data?['error'] ?? e.response?.data?['message'];
+        final message =
+            e.response?.data?['error'] ?? e.response?.data?['message'];
 
         if (statusCode == 401) {
           return 'Your session has expired. Please login again.';

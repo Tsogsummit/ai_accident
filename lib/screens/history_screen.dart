@@ -226,7 +226,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                       ElevatedButton.icon(
                         onPressed: () async {
                           await _authService.logout();
-                          if (mounted) {
+                          if (context.mounted) {
                             Navigator.of(context).pushAndRemoveUntil(
                               MaterialPageRoute(
                                 builder: (_) => const LoginScreen(),
@@ -357,7 +357,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                   Container(
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _getSourceColor(accident.source).withOpacity(0.1),
+                      color: _getSourceColor(
+                        accident.source,
+                      ).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -444,7 +446,9 @@ class _HistoryScreenState extends State<HistoryScreen>
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(accident.status).withOpacity(0.1),
+                  color: _getStatusColor(
+                    accident.status,
+                  ).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -483,7 +487,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                   Container(
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.image, color: statusColor, size: 20),
@@ -545,7 +549,7 @@ class _HistoryScreenState extends State<HistoryScreen>
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -699,7 +703,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                                     ),
                                   );
 
-                                  if (result == true && mounted) {
+                                  if (result == true && context.mounted) {
                                     _refreshData();
                                     Navigator.pop(context);
                                   }
@@ -973,10 +977,10 @@ class _HistoryScreenState extends State<HistoryScreen>
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text('Хаах'),
                       style: ElevatedButton.styleFrom(
                         padding: EdgeInsets.symmetric(vertical: 14),
                       ),
+                      child: Text('Хаах'),
                     ),
                   ),
 

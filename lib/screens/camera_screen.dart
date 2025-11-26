@@ -219,8 +219,8 @@ class _CameraScreenState extends State<CameraScreen>
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.transparent,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => false,
+      builder: (context) => PopScope(
+        canPop: false,
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -311,20 +311,18 @@ class _CameraScreenState extends State<CameraScreen>
 
     if (_currentPosition == null) {
       await _getCurrentLocation();
-      if (_currentPosition == null) {
-        _currentPosition = Position(
-          latitude: 47.9184,
-          longitude: 106.9177,
-          timestamp: DateTime.now(),
-          accuracy: 0,
-          altitude: 0,
-          heading: 0,
-          speed: 0,
-          speedAccuracy: 0,
-          altitudeAccuracy: 0,
-          headingAccuracy: 0,
-        );
-      }
+      _currentPosition ??= Position(
+        latitude: 47.9184,
+        longitude: 106.9177,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitude: 0,
+        heading: 0,
+        speed: 0,
+        speedAccuracy: 0,
+        altitudeAccuracy: 0,
+        headingAccuracy: 0,
+      );
     }
 
     if (!mounted) return;
@@ -527,7 +525,7 @@ class _CameraScreenState extends State<CameraScreen>
   Future<File?> _compressImage(File file) async {
     try {
       final filePath = file.absolute.path;
-      final lastIndex = filePath.lastIndexOf(new RegExp(r'.jp'));
+      final lastIndex = filePath.lastIndexOf(RegExp(r'.jp'));
       final splitted = filePath.substring(0, (lastIndex));
       final outPath = "${splitted}_out${filePath.substring(lastIndex)}";
 
@@ -581,15 +579,12 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => true,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('AI Осол Илрүүлэлт'),
-          backgroundColor: Colors.blue,
-        ),
-        body: _buildBody(),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('AI Осол Илрүүлэлт'),
+        backgroundColor: Colors.blue,
       ),
+      body: _buildBody(),
     );
   }
 
