@@ -2,12 +2,6 @@
   "configVersion": 2,
   "packages": [
     {
-      "name": "apple_maps_flutter",
-      "rootUri": "file:///C:/Users/tsog/AppData/Local/Pub/Cache/hosted/pub.dev/apple_maps_flutter-1.4.0",
-      "packageUri": "lib/",
-      "languageVersion": "2.14"
-    },
-    {
       "name": "args",
       "rootUri": "file:///C:/Users/tsog/AppData/Local/Pub/Cache/hosted/pub.dev/args-2.7.0",
       "packageUri": "lib/",

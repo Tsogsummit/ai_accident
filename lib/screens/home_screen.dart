@@ -61,6 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
+        // Disable swipe for Map (index 0) and Camera (index 1) screens
+        physics: _currentIndex == 0 || _currentIndex == 1
+            ? NeverScrollableScrollPhysics()
+            : PageScrollPhysics(),
         children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(

@@ -28,6 +28,11 @@ class _CameraScreenState extends State<CameraScreen>
   String? _imagePath;
   Position? _currentPosition;
 
+  // Zoom controls
+  double _currentZoom = 1.0;
+  double _minZoom = 1.0;
+  double _maxZoom = 1.0;
+
   @override
   void initState() {
     super.initState();
@@ -174,12 +179,33 @@ class _CameraScreenState extends State<CameraScreen>
     );
 
     await _cameraController!.initialize();
+
+    // Get zoom capabilities
+    _minZoom = await _cameraController!.getMinZoomLevel();
+    _maxZoom = await _cameraController!.getMaxZoomLevel();
+
     if (mounted) {
       setState(() {
         _isInitialized = true;
         _error = null;
       });
     }
+  }
+
+  Future<void> _zoomIn() async {
+    if (!_isInitialized || _cameraController == null) return;
+
+    final newZoom = (_currentZoom + 0.5).clamp(_minZoom, _maxZoom);
+    await _cameraController!.setZoomLevel(newZoom);
+    setState(() => _currentZoom = newZoom);
+  }
+
+  Future<void> _zoomOut() async {
+    if (!_isInitialized || _cameraController == null) return;
+
+    final newZoom = (_currentZoom - 0.5).clamp(_minZoom, _maxZoom);
+    await _cameraController!.setZoomLevel(newZoom);
+    setState(() => _currentZoom = newZoom);
   }
 
   // Video methods removed
@@ -630,6 +656,51 @@ class _CameraScreenState extends State<CameraScreen>
       children: [
         Positioned.fill(child: CameraPreview(_cameraController!)),
 
+        // Zoom controls - positioned on the right side
+        Positioned(
+          right: 20,
+          top: MediaQuery.of(context).size.height * 0.35,
+          child: Column(
+            children: [
+              // Zoom In button
+              FloatingActionButton(
+                heroTag: "zoom_in",
+                onPressed: _zoomIn,
+                mini: true,
+                backgroundColor: Colors.white.withOpacity(0.8),
+                child: Icon(Icons.add, color: Colors.black),
+              ),
+              SizedBox(height: 12),
+              // Zoom level indicator
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${_currentZoom.toStringAsFixed(1)}x',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              SizedBox(height: 12),
+              // Zoom Out button
+              FloatingActionButton(
+                heroTag: "zoom_out",
+                onPressed: _zoomOut,
+                mini: true,
+                backgroundColor: Colors.white.withOpacity(0.8),
+                child: Icon(Icons.remove, color: Colors.black),
+              ),
+            ],
+          ),
+        ),
+
+        // Camera capture button
         Positioned(
           bottom: 40,
           left: 0,
