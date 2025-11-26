@@ -56,20 +56,20 @@ class AccidentService {
           final token = await _authService.getAccessToken();
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
-            print('✅ Token нэмэгдлээ: ${token.substring(0, 20)}...');
+            print('Token added: ${token.substring(0, 20)}...');
           } else {
-            print('⚠️ Token байхгүй байна!');
+            print('Warning: No token available');
           }
           return handler.next(options);
         },
         onError: (error, handler) async {
           if (error.response?.statusCode == 401) {
-            print('⚠️ 401 Unauthorized - Token хүчингүй');
+            print('401 Unauthorized - Token expired');
 
             final refreshed = await _authService.refreshAccessToken();
 
             if (refreshed) {
-              print('✅ Token шинэчлэгдлээ, дахин оролдож байна...');
+              print('Token refreshed, retrying request...');
 
               final newToken = await _authService.getAccessToken();
               error.requestOptions.headers['Authorization'] =
@@ -79,11 +79,11 @@ class AccidentService {
                 final response = await _dio.fetch(error.requestOptions);
                 return handler.resolve(response);
               } catch (e) {
-                print('❌ Retry амжилтгүй: $e');
+                print('Retry failed: $e');
                 return handler.next(error);
               }
             } else {
-              print('❌ Token шинэчлэх амжилтгүй - logout хийх хэрэгтэй');
+              print('Token refresh failed - logout required');
               await _authService.logout();
             }
           }
@@ -119,12 +119,12 @@ class AccidentService {
     bool userOnly = false,
   }) async {
     if (!forceRefresh && _isCacheValid()) {
-      print('📦 Cache-с ослын мэдээлэл буцаах: ${_cachedAccidents!.length}');
+      print('Returning cached accidents: ${_cachedAccidents!.length}');
       return _cachedAccidents!;
     }
 
     try {
-      print('📡 Backend-с ослын мэдээлэл татаж байна...');
+      print('Fetching accidents from server...');
 
       Map<String, dynamic> queryParams = {};
 
@@ -144,15 +144,15 @@ class AccidentService {
       if (forceRefresh) queryParams['forceRefresh'] = 'true';
       if (userOnly) queryParams['userOnly'] = 'true';
 
-      print('🔍 DEBUG: getAllAccidents queryParams = $queryParams');
-      print('🔍 DEBUG: userOnly = $userOnly');
+      print('DEBUG: getAllAccidents queryParams = $queryParams');
+      print('DEBUG: userOnly = $userOnly');
 
       final response = await _dio.get(
         ApiConfig.accidentsEndpoint,
         queryParameters: queryParams,
       );
 
-      print('📥 Response status: ${response.statusCode}');
+      print('Response status: ${response.statusCode}');
 
       List<Accident> accidents = [];
 
@@ -165,24 +165,24 @@ class AccidentService {
             .toList();
       }
 
-      print('✅ ${accidents.length} осол ачаалагдлаа');
+      print('${accidents.length} accidents loaded');
 
       _cachedAccidents = accidents;
       _cacheTimestamp = DateTime.now();
 
       return accidents;
     } on DioException catch (e) {
-      print('❌ DioException: ${e.type} - ${e.message}');
-      print('❌ Response: ${e.response?.data}');
+      print('DioException: ${e.type} - ${e.message}');
+      print('Response: ${e.response?.data}');
 
       if (_cachedAccidents != null && _isNetworkError(e)) {
-        print('⚠️ Сүлжээний алдаа - кэш өгөгдөл ашиглаж байна');
+        print('Network error - using cached data');
         return _cachedAccidents!;
       }
       throw _handleError(e);
     } catch (e) {
-      print('❌ Unexpected error: $e');
-      throw 'Тодорхойгүй алдаа гарлаа: $e';
+      print('Unexpected error: $e');
+      throw 'An unexpected error occurred: $e';
     }
   }
 
@@ -283,7 +283,7 @@ class AccidentService {
         return Accident.fromJson(response.data);
       }
 
-      throw Exception('Осол мэдээлэхэд алдаа гарлаа');
+      throw Exception('Failed to report accident');
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -308,7 +308,7 @@ class AccidentService {
       });
 
       final url = ApiConfig.reportImageEndpoint;
-      print('📸 Uploading image report to: $url');
+      print('Uploading image report to: $url');
 
       final dio = Dio(BaseOptions(
         connectTimeout: Duration(seconds: 30),
@@ -341,7 +341,7 @@ class AccidentService {
         return Map<String, dynamic>.from(responseData);
       }
 
-      throw Exception('Буруу хариу ирлээ');
+      throw Exception('Invalid response received');
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -370,11 +370,11 @@ class AccidentService {
       }
 
       if (data['isAccident'] == false) {
-        throw Exception(result['message'] ?? 'Осол илрээгүй');
+        throw Exception(result['message'] ?? 'No accident detected in the image');
       }
     }
 
-    throw Exception(result['error'] ?? 'Осол мэдээлэхэд алдаа гарлаа');
+    throw Exception(result['error'] ?? 'Failed to report accident');
   }
 
   Future<Accident> updateAccident(
@@ -401,7 +401,7 @@ class AccidentService {
         return Accident.fromJson(response.data);
       }
 
-      throw Exception('Ослын мэдээлэл шинэчлэхэд алдаа гарлаа');
+      throw Exception('Failed to update accident information');
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -516,19 +516,19 @@ class AccidentService {
   }
 
   String _handleError(DioException e) {
-    print('❌ API Алдаа: ${e.type} - ${e.message}');
-    print('❌ Response status: ${e.response?.statusCode}');
-    print('❌ Response data: ${e.response?.data}');
+    print('API Error: ${e.type} - ${e.message}');
+    print('Response status: ${e.response?.statusCode}');
+    print('Response data: ${e.response?.data}');
 
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
-        return 'Холболтын хугацаа дууслаа. Интернет холболтоо шалгаад дахин оролдоно уу.';
+        return 'Connection timeout. Please check your internet connection and try again.';
 
       case DioExceptionType.sendTimeout:
-        return 'Өгөгдөл илгээх хугацаа дууслаа. Интернет холболтоо шалгаад дахин оролдоно уу.';
+        return 'Request timeout. Please check your internet connection and try again.';
 
       case DioExceptionType.receiveTimeout:
-        return 'Хариу хүлээх хугацаа дууслаа. Интернет холболтоо шалгаад дахин оролдоно уу.';
+        return 'Server response timeout. Please try again later.';
 
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
@@ -536,37 +536,37 @@ class AccidentService {
             e.response?.data?['error'] ?? e.response?.data?['message'];
 
         if (statusCode == 401) {
-          return 'Нэвтрэх эрх дууссан. Дахин нэвтрэнэ үү.';
+          return 'Your session has expired. Please login again.';
         } else if (statusCode == 403) {
-          return 'Энэ үйлдэл хийх эрх танд байхгүй байна.';
+          return 'You do not have permission to perform this action.';
         } else if (statusCode == 404) {
-          return 'Хүссэн мэдээлэл олдсонгүй.';
+          return 'The requested information could not be found.';
         } else if (statusCode == 429) {
-          return 'Хэт олон хүсэлт илгээлээ. Түр хүлээгээд дахин оролдоно уу.';
+          return 'Too many requests. Please wait a moment and try again.';
         } else if (statusCode == 500) {
-          return 'Серверийн алдаа гарлаа. Түр хүлээгээд дахин оролдоно уу.';
+          return 'Server error occurred. Please try again later.';
         } else if (statusCode == 503) {
-          return 'Үйлчилгээ түр зогссон байна. Түр хүлээгээд дахин оролдоно уу.';
+          return 'Service temporarily unavailable. Please try again later.';
         } else if (message != null) {
           return message.toString();
         }
-        return 'Серверээс алдаа буцаж ирлээ. (Код: ${statusCode ?? "??"})';
+        return 'Server returned an error. (Code: ${statusCode ?? "unknown"})';
 
       case DioExceptionType.cancel:
-        return 'Хүсэлт цуцлагдлаа.';
+        return 'Request was cancelled.';
 
       case DioExceptionType.connectionError:
-        return 'Интернет холболт тасарсан байна. Холболтоо шалгаад дахин оролдоно уу.';
+        return 'Connection failed. Please check your internet connection and try again.';
 
       case DioExceptionType.badCertificate:
-        return 'Аюулгүй байдлын гэрчилгээ буруу байна. Апп шинэчлэлт хэрэгтэй байж магадгүй.';
+        return 'Security certificate error. Please update the app or contact support.';
 
       case DioExceptionType.unknown:
       default:
         if (e.error is SocketException) {
-          return 'Интернет холболт алдаатай байна. WiFi эсвэл мобайл датаа шалгана уу.';
+          return 'Network connection error. Please check your WiFi or mobile data and try again.';
         }
-        return 'Тодорхойгүй алдаа гарлаа. Дахин оролдоно уу.';
+        return 'An unexpected error occurred. Please try again.';
     }
   }
 

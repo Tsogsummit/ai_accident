@@ -37,7 +37,7 @@ class FalseReportService {
 
       return [];
     } on DioException catch (e) {
-      print('❌ Get report reasons error: ${e.message}');
+      print('Get report reasons error: ${e.message}');
       return [];
     }
   }
@@ -86,7 +86,7 @@ class FalseReportService {
         'message': response.data?['message'] ?? 'Unknown error',
       };
     } on DioException catch (e) {
-      print('❌ Report false alarm error: ${e.message}');
+      print('Report false alarm error: ${e.message}');
       if (e.response != null) {
         print('Response: ${e.response?.data}');
 

@@ -33,14 +33,14 @@ class ConnectivityService {
             (ConnectivityResult result) {
           _connectionStatus = result;
           _statusController.add(result);
-          print('🌐 Холболтын төлөв солигдлоо: ${_getStatusText(result)}');
+          print('Connectivity status changed: ${_getStatusText(result)}');
         },
         onError: (error) {
-          print('❌ Холболтын төлөв шалгахад алдаа: $error');
+          print('Error checking connectivity status: $error');
         },
       );
     } catch (e) {
-      print('❌ ConnectivityService эхлүүлэхэд алдаа: $e');
+      print('Error initializing ConnectivityService: $e');
     }
   }
 
@@ -50,7 +50,7 @@ class ConnectivityService {
       _connectionStatus = result;
       return result != ConnectivityResult.none;
     } catch (e) {
-      print('❌ Холболт шалгахад алдаа: $e');
+      print('Error checking connection: $e');
       return false;
     }
   }

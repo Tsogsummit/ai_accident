@@ -49,7 +49,7 @@ class NotificationService {
             if (refreshed) {
               final token = await _authService.getAccessToken();
               error.requestOptions.headers['Authorization'] = 'Bearer $token';
-              
+
               try {
                 final response = await _dio.fetch(error.requestOptions);
                 return handler.resolve(response);
@@ -82,7 +82,7 @@ class NotificationService {
     bool unreadOnly = false,
   }) async {
     try {
-      print('📬 Мэдэгдэл ачааллаж байна: userId=$userId');
+      print('Loading notifications: userId=$userId');
 
       final response = await _dio.get(
         '/notifications',
@@ -99,7 +99,7 @@ class NotificationService {
             .map((item) => item as Map<String, dynamic>)
             .toList();
 
-        print('✅ ${notifications.length} мэдэгдэл ачаалагдлаа');
+        print('${notifications.length} notifications loaded');
 
         return {
           'success': true,
@@ -111,12 +111,12 @@ class NotificationService {
 
       return {
         'success': false,
-        'error': response.data['error'] ?? 'Алдаа гарлаа',
+        'error': response.data['error'] ?? 'An error occurred',
         'notifications': [],
         'unreadCount': 0,
       };
     } on DioException catch (e) {
-      print('❌ Notification error: ${e.message}');
+      print('Notification error: ${e.message}');
       return {
         'success': false,
         'error': _handleError(e),
@@ -128,27 +128,27 @@ class NotificationService {
 
   Future<bool> markAsRead(String notificationId) async {
     try {
-      print('✅ Мэдэгдэл уншиж байна: id=$notificationId');
+      print('Marking notification as read: id=$notificationId');
 
       final response = await _dio.put(
         '/notifications/$notificationId/read',
       );
 
       if (response.statusCode == 200 && response.data['success']) {
-        print('✅ Мэдэгдэл уншигдлаа');
+        print('Notification marked as read');
         return true;
       }
 
       return false;
     } on DioException catch (e) {
-      print('❌ Mark as read error: ${e.message}');
+      print('Mark as read error: ${e.message}');
       return false;
     }
   }
 
   Future<bool> markAllAsRead(int userId) async {
     try {
-      print('✅ Бүх мэдэгдэл уншиж байна: userId=$userId');
+      print('Marking all notifications as read: userId=$userId');
 
       final response = await _dio.put(
         '/notifications/read-all',
@@ -156,20 +156,20 @@ class NotificationService {
       );
 
       if (response.statusCode == 200 && response.data['success']) {
-        print('✅ Бүх мэдэгдэл уншигдлаа');
+        print('All notifications marked as read');
         return true;
       }
 
       return false;
     } on DioException catch (e) {
-      print('❌ Mark all as read error: ${e.message}');
+      print('Mark all as read error: ${e.message}');
       return false;
     }
   }
 
   Future<bool> deleteNotification(String notificationId, int userId) async {
     try {
-      print('🗑️ Мэдэгдэл устгаж байна: id=$notificationId');
+      print('Deleting notification: id=$notificationId');
 
       final response = await _dio.delete(
         '/notifications/$notificationId',
@@ -177,13 +177,13 @@ class NotificationService {
       );
 
       if (response.statusCode == 200 && response.data['success']) {
-        print('✅ Мэдэгдэл устгагдлаа');
+        print('Notification deleted');
         return true;
       }
 
       return false;
     } on DioException catch (e) {
-      print('❌ Delete notification error: ${e.message}');
+      print('Delete notification error: ${e.message}');
       return false;
     }
   }
@@ -198,7 +198,7 @@ class NotificationService {
 
       return null;
     } on DioException catch (e) {
-      print('❌ Get settings error: ${e.message}');
+      print('Get settings error: ${e.message}');
       return null;
     }
   }
@@ -221,13 +221,13 @@ class NotificationService {
       );
 
       if (response.statusCode == 200 && response.data['success']) {
-        print('✅ Тохиргоо шинэчлэгдлээ');
+        print('Settings updated successfully');
         return true;
       }
 
       return false;
     } on DioException catch (e) {
-      print('❌ Update settings error: ${e.message}');
+      print('Update settings error: ${e.message}');
       return false;
     }
   }
@@ -243,13 +243,13 @@ class NotificationService {
       );
 
       if (response.statusCode == 200 && response.data['success']) {
-        print('✅ FCM токен бүртгэгдлээ');
+        print('FCM token registered');
         return true;
       }
 
       return false;
     } on DioException catch (e) {
-      print('❌ Register FCM token error: ${e.message}');
+      print('Register FCM token error: ${e.message}');
       return false;
     }
   }
@@ -262,13 +262,13 @@ class NotificationService {
       );
 
       if (response.statusCode == 200 && response.data['success']) {
-        print('✅ FCM токен устгагдлаа');
+        print('FCM token unregistered');
         return true;
       }
 
       return false;
     } on DioException catch (e) {
-      print('❌ Unregister FCM token error: ${e.message}');
+      print('Unregister FCM token error: ${e.message}');
       return false;
     }
   }
@@ -278,28 +278,28 @@ class NotificationService {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return 'Холболтын хугацаа дууслаа. Интернет холболтоо шалгана уу.';
+        return 'Connection timeout. Please check your internet connection and try again.';
 
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
         final message = e.response?.data?['error'] ?? e.response?.data?['message'];
 
         if (statusCode == 401) {
-          return 'Нэвтрэх эрх дууссан. Дахин нэвтэрнэ үү.';
+          return 'Your session has expired. Please login again.';
         } else if (statusCode == 403) {
-          return 'Хандах эрх байхгүй.';
+          return 'You do not have permission to access this.';
         } else if (statusCode == 404) {
-          return 'Мэдэгдэл олдсонгүй.';
+          return 'Notification not found.';
         } else if (message != null) {
           return message.toString();
         }
-        return 'Серверийн алдаа гарлаа.';
+        return 'Server error occurred. Please try again later.';
 
       case DioExceptionType.connectionError:
-        return 'Интернет холболт тасарсан.';
+        return 'Connection failed. Please check your internet connection.';
 
       default:
-        return 'Алдаа гарлаа. Дахин оролдоно уу.';
+        return 'An error occurred. Please try again.';
     }
   }
 

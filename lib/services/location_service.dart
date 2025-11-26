@@ -4,19 +4,19 @@ class LocationService {
   Future<Position?> getCurrentLocation() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        throw Exception('Байршлын үйлчилгээ идэвхгүй байна');
+        throw Exception('Location services are disabled');
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          throw Exception('Байршлын зөвшөөрөл олгогдоогүй');
+          throw Exception('Location permission denied');
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        throw Exception('Байршлын зөвшөөрөл бүрмөсөн татгалзсан');
+        throw Exception('Location permission permanently denied');
       }
 
       return await Geolocator.getCurrentPosition(

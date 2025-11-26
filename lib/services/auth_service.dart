@@ -10,7 +10,7 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', accessToken);
     await prefs.setString('refresh_token', refreshToken);
-    print('✅ Токен хадгалагдлаа');
+    print('Token saved successfully');
   }
 
   Future<String?> getAccessToken() async {
@@ -26,7 +26,7 @@ class AuthService {
   Future<void> saveUser(Map<String, dynamic> user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user', jsonEncode(user));
-    print('✅ Хэрэглэгчийн мэдээлэл хадгалагдлаа: ${user['name']}');
+    print('User information saved: ${user['name']}');
   }
 
   Future<Map<String, dynamic>?> getUser() async {
@@ -44,9 +44,9 @@ class AuthService {
   }
 
   Future<Map<String, dynamic>> login(String phone, String password) async {
-    print('🔐 Нэвтэрч байна...');
-    print('📡 URL: ${ApiConfig.loginEndpoint}');
-    
+    print('Attempting login...');
+    print('URL: ${ApiConfig.loginEndpoint}');
+
     try {
       final response = await http.post(
         Uri.parse(ApiConfig.loginEndpoint),
@@ -58,12 +58,12 @@ class AuthService {
       ).timeout(
         Duration(seconds: 10),
         onTimeout: () {
-          throw Exception('Хугацаа дууссан - Серверт холбогдож чадсангүй');
+          throw Exception('Request timeout - Could not connect to server');
         },
       );
 
-      print('📥 Response status: ${response.statusCode}');
-      print('📥 Response body: ${response.body}');
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       final data = jsonDecode(response.body);
 
@@ -71,17 +71,17 @@ class AuthService {
         final responseData = data['data'];
         await saveTokens(responseData['accessToken'], responseData['refreshToken']);
         await saveUser(responseData['user']);
-        print('✅ Амжилттай нэвтэрлээ: ${responseData['user']['name']}');
+        print('Login successful: ${responseData['user']['name']}');
         return {'success': true, 'user': responseData['user']};
       } else {
-        print('❌ Нэвтрэлт амжилтгүй: ${data['error']}');
-        return {'success': false, 'error': data['error'] ?? 'Нэвтрэхэд алдаа гарлаа'};
+        print('Login failed: ${data['error']}');
+        return {'success': false, 'error': data['error'] ?? 'Login failed. Please try again.'};
       }
     } catch (e) {
-      print('❌ Алдаа гарлаа: $e');
+      print('Error occurred: $e');
       return {
         'success': false,
-        'error': 'Сервертэй холбогдож чадсангүй. IP хаягаа шалгана уу.\n\nURL: ${ApiConfig.loginEndpoint}\n\nАлдаа: $e'
+        'error': 'Unable to connect to the server. Please check your internet connection and try again.'
       };
     }
   }
@@ -92,9 +92,9 @@ class AuthService {
     required String password,
     String? email,
   }) async {
-    print('📝 Бүртгүүлж байна...');
-    print('📡 URL: ${ApiConfig.registerEndpoint}');
-    
+    print('Registering account...');
+    print('URL: ${ApiConfig.registerEndpoint}');
+
     try {
       final response = await http.post(
         Uri.parse(ApiConfig.registerEndpoint),
@@ -108,12 +108,12 @@ class AuthService {
       ).timeout(
         Duration(seconds: 10),
         onTimeout: () {
-          throw Exception('Хугацаа дууссан - Серверт холбогдож чадсангүй');
+          throw Exception('Request timeout - Could not connect to server');
         },
       );
 
-      print('📥 Response status: ${response.statusCode}');
-      print('📥 Response body: ${response.body}');
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       final data = jsonDecode(response.body);
 
@@ -121,24 +121,24 @@ class AuthService {
         final responseData = data['data'];
         await saveTokens(responseData['accessToken'], responseData['refreshToken']);
         await saveUser(responseData['user']);
-        print('✅ Амжилттай бүртгэгдлээ');
+        print('Registration successful');
         return {'success': true, 'user': responseData['user']};
       } else {
-        print('❌ Бүртгэл амжилтгүй: ${data['error']}');
-        return {'success': false, 'error': data['error'] ?? 'Бүртгэлд алдаа гарлаа'};
+        print('Registration failed: ${data['error']}');
+        return {'success': false, 'error': data['error'] ?? 'Registration failed. Please try again.'};
       }
     } catch (e) {
-      print('❌ Алдаа гарлаа: $e');
+      print('Error occurred: $e');
       return {
         'success': false,
-        'error': 'Сервертэй холбогдож чадсангүй. IP хаягаа шалгана уу.\n\nURL: ${ApiConfig.registerEndpoint}\n\nАлдаа: $e'
+        'error': 'Unable to connect to the server. Please check your internet connection and try again.'
       };
     }
   }
 
   Future<void> logout() async {
-    print('🚪 Гарч байна...');
-    
+    print('Logging out...');
+
     final prefs = await SharedPreferences.getInstance();
     final user = await getUser();
 
@@ -149,33 +149,33 @@ class AuthService {
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'userId': user['id']}),
         ).timeout(Duration(seconds: 5));
-        print('✅ Серверээс гарлаа');
+        print('Logged out from server');
       } catch (e) {
-        print('⚠️ Серверээс гарах алдаа: $e');
+        print('Warning: Server logout failed: $e');
       }
     }
 
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
     await prefs.remove('user');
-    print('✅ Локал мэдээлэл устгагдлаа');
+    print('Local data cleared');
   }
 
   Future<bool> isLoggedIn() async {
     final token = await getAccessToken();
     final user = await getUser();
     final isLoggedIn = token != null && user != null;
-    print('🔍 Нэвтэрсэн эсэх: $isLoggedIn');
+    print('Checking login status: $isLoggedIn');
     return isLoggedIn;
   }
   Future<bool> refreshAccessToken() async {
-    print('🔄 Токен шинэчилж байна...');
-    
+    print('Refreshing access token...');
+
     try {
       final refreshToken = await getRefreshToken();
 
       if (refreshToken == null) {
-        print('❌ Refresh token олдсонгүй');
+        print('Refresh token not found');
         return false;
       }
 
@@ -190,26 +190,26 @@ class AuthService {
       if (response.statusCode == 200 && data['success']) {
         final responseData = data['data'];
         await saveTokens(responseData['accessToken'], responseData['refreshToken']);
-        print('✅ Токен шинэчлэгдлээ');
+        print('Token refreshed successfully');
         return true;
       } else {
-        print('❌ Токен шинэчлэх алдаа: ${data['error']}');
+        print('Token refresh failed: ${data['error']}');
         await logout();
         return false;
       }
     } catch (e) {
-      print('❌ Токен шинэчлэх алдаа: $e');
+      print('Token refresh error: $e');
       return false;
     }
   }
 
   Future<Map<String, dynamic>?> getProfile() async {
-    print('👤 Профайл авч байна...');
-    
+    print('Fetching user profile...');
+
     try {
       final token = await getAccessToken();
       if (token == null) {
-        print('❌ Токен олдсонгүй');
+        print('Access token not found');
         return null;
       }
 
@@ -221,10 +221,10 @@ class AuthService {
         },
       ).timeout(Duration(seconds: 10));
 
-      print('📥 Profile response: ${response.statusCode}');
+      print('Profile response: ${response.statusCode}');
 
       if (response.statusCode == 401) {
-        print('⚠️ Токен хүчингүй, шинэчилж байна...');
+        print('Token expired, refreshing...');
         final refreshed = await refreshAccessToken();
         if (refreshed) {
           return await getProfile();
@@ -237,14 +237,14 @@ class AuthService {
       if (response.statusCode == 200 && data['success']) {
         final userData = data['data']['user'];
         await saveUser(userData);
-        print('✅ Профайл авагдлаа: ${userData['name']}');
+        print('Profile loaded: ${userData['name']}');
         return userData;
       } else {
-        print('❌ Профайл авах алдаа: ${data['error']}');
+        print('Profile fetch failed: ${data['error']}');
         return null;
       }
     } catch (e) {
-      print('❌ Профайл авах алдаа: $e');
+      print('Profile fetch error: $e');
       return null;
     }
   }
@@ -255,15 +255,15 @@ class AuthService {
     String? phone,
     required String currentPassword,
   }) async {
-    print('✏️ Профайл шинэчилж байна...');
+    print('Updating profile...');
 
     try {
       final token = await getAccessToken();
       if (token == null) {
-        print('❌ Токен олдсонгүй');
+        print('Access token not found');
         return {
           'success': false,
-          'error': 'Нэвтрэх шаардлагатай'
+          'error': 'Please login to continue'
         };
       }
 
@@ -281,10 +281,10 @@ class AuthService {
         }),
       ).timeout(Duration(seconds: 10));
 
-      print('📥 Update profile response: ${response.statusCode}');
+      print('Update profile response: ${response.statusCode}');
 
       if (response.statusCode == 401) {
-        print('⚠️ Токен хүчингүй, шинэчилж байна...');
+        print('Token expired, refreshing...');
         final refreshed = await refreshAccessToken();
         if (refreshed) {
           return await updateProfile(
@@ -296,7 +296,7 @@ class AuthService {
         }
         return {
           'success': false,
-          'error': 'Токен хүчингүй. Дахин нэвтэрнэ үү.'
+          'error': 'Your session has expired. Please login again.'
         };
       }
 
@@ -305,24 +305,24 @@ class AuthService {
       if (response.statusCode == 200 && data['success']) {
         final userData = data['data']['user'];
         await saveUser(userData);
-        print('✅ Профайл шинэчлэгдлээ: ${userData['name']}');
+        print('Profile updated: ${userData['name']}');
         return {
           'success': true,
           'message': data['message'],
           'user': userData
         };
       } else {
-        print('❌ Профайл шинэчлэх алдаа: ${data['error']}');
+        print('Profile update failed: ${data['error']}');
         return {
           'success': false,
-          'error': data['error'] ?? 'Профайл шинэчлэхэд алдаа гарлаа'
+          'error': data['error'] ?? 'Failed to update profile. Please try again.'
         };
       }
     } catch (e) {
-      print('❌ Профайл шинэчлэх алдаа: $e');
+      print('Profile update error: $e');
       return {
         'success': false,
-        'error': 'Сервертэй холбогдож чадсангүй. IP хаягаа шалгана уу.\n\nАлдаа: $e'
+        'error': 'Unable to connect to the server. Please check your internet connection and try again.'
       };
     }
   }

@@ -39,7 +39,7 @@ class SubmissionService {
         options: Options(headers: headers),
       );
 
-      print('📦 Submissions response: ${response.data}');
+      print('Submissions response: ${response.data}');
 
       if (response.data is Map && response.data['success'] == true) {
         final List<dynamic> data = response.data['data'] ?? [];
@@ -48,29 +48,29 @@ class SubmissionService {
 
       return [];
     } on DioException catch (e) {
-      print('❌ Get submissions error: ${e.message}');
-      print('❌ Response: ${e.response?.data}');
+      print('Get submissions error: ${e.message}');
+      print('Response: ${e.response?.data}');
       throw _handleError(e);
     }
   }
   String _handleError(DioException e) {
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
-        return 'Холболтын хугацаа дууслаа';
+        return 'Connection timeout occurred';
       case DioExceptionType.receiveTimeout:
-        return 'Хариу хүлээх хугацаа дууслаа';
+        return 'Server response timeout';
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
         if (statusCode == 401) {
-          return 'Нэвтрэх эрх дууссан';
+          return 'Your session has expired';
         } else if (statusCode == 403) {
-          return 'Эрх хүрэхгүй байна';
+          return 'You do not have permission to access this';
         }
-        return e.response?.data?['error'] ?? 'Серверийн алдаа';
+        return e.response?.data?['error'] ?? 'Server error occurred';
       case DioExceptionType.connectionError:
-        return 'Интернет холболт алдаатай';
+        return 'Internet connection error';
       default:
-        return 'Алдаа гарлаа';
+        return 'An error occurred';
     }
   }
 
