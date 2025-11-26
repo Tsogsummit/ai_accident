@@ -24,14 +24,12 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixin {
-  // Google Maps controller
   google_maps.GoogleMapController? _googleMapController;
   final Completer<google_maps.GoogleMapController> _googleController = Completer();
 
   Position? _currentPosition;
   StreamSubscription<Position>? _positionStreamSubscription;
 
-  // Google Maps markers
   Set<google_maps.Marker> _googleMarkers = {};
 
   bool _isMapReady = false;
@@ -39,17 +37,14 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   google_maps.CameraPosition? _currentGoogleCameraPosition;
   bool _isAnimating = false;
 
-  // Track last updated accidents to prevent unnecessary marker updates
   List<Accident>? _lastAccidents;
 
-  // Default location - Ulaanbaatar
   static const double _defaultLat = 47.9077;
   static const double _defaultLng = 106.8832;
   static const double _minZoom = 5.0;
   static const double _maxZoom = 20.0;
 
-  // Traffic settings
-  bool _showTraffic = false; // Traffic flow toggle for Google Maps
+  bool _showTraffic = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -60,7 +55,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     _initializeLocation();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAccidents();
-      // If initial location is provided, move to it
       if (widget.initialLatitude != null && widget.initialLongitude != null) {
         Future.delayed(Duration(milliseconds: 500), () {
           _moveToLocation(
@@ -120,11 +114,9 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   }
 
   bool _shouldUpdateMarkers(List<Accident> accidents) {
-    // Check if accidents list has changed
     if (_lastAccidents == null) return true;
     if (_lastAccidents!.length != accidents.length) return true;
 
-    // Check if any accident IDs are different
     return !_lastAccidents!.every((a) => accidents.any((b) => a.id == b.id));
   }
 
@@ -235,7 +227,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
                 padding: EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -264,7 +255,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                 ),
               ),
 
-              // Content
               Flexible(
                 child: SingleChildScrollView(
                   padding: EdgeInsets.all(20),
@@ -283,7 +273,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                 ),
               ),
 
-              // Actions
               Padding(
                 padding: EdgeInsets.all(16),
                 child: Column(
@@ -323,7 +312,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                             ),
                           );
                           if (result == true) {
-                            // Force reload accidents from backend to reflect status change
                             await provider.loadAccidents(forceRefresh: true);
                             if (mounted && _isMapReady) {
                               _updateMarkers(provider.accidents);
@@ -408,14 +396,12 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
       zoomControlsEnabled: false,
       mapToolbarEnabled: false,
       compassEnabled: true,
-      trafficEnabled: _showTraffic, // ✅ Traffic flow toggle
+      trafficEnabled: _showTraffic, 
       minMaxZoomPreference: google_maps.MinMaxZoomPreference(_minZoom, _maxZoom),
-      // Enable smooth gestures
       zoomGesturesEnabled: true,
       scrollGesturesEnabled: true,
       tiltGesturesEnabled: true,
       rotateGesturesEnabled: true,
-      // Optimize gesture recognizers for smooth interaction
       gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
         Factory<PanGestureRecognizer>(() => PanGestureRecognizer()),
         Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
@@ -459,7 +445,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
       ),
       body: Consumer<AccidentProvider>(
         builder: (context, provider, child) {
-          // Schedule marker update after build completes, only if data changed
           if (!provider.isLoading &&
               provider.accidents.isNotEmpty &&
               _isMapReady &&
@@ -473,10 +458,8 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
 
           return Stack(
             children: [
-              // Google Maps only
               _buildGoogleMap(),
 
-              // COMPACT STATISTICS - Single Row
               Positioned(
                 top: 12,
                 left: 12,
@@ -517,7 +500,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                 ),
               ),
 
-              // Loading overlay
               if (provider.isLoading)
                 Positioned.fill(
                   child: Container(
@@ -583,7 +565,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
             backgroundColor: Colors.green,
             child: Icon(Icons.refresh),
           ),
-          // ✅ Traffic toggle
           SizedBox(height: 12),
           FloatingActionButton(
             heroTag: "traffic",
@@ -605,7 +586,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     );
   }
 
-  // COMPACT STAT WIDGET - Smaller and cleaner
   Widget _buildCompactStat(String value, String label, Color color) {
     return Column(
       mainAxisSize: MainAxisSize.min,

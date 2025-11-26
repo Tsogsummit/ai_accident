@@ -1,6 +1,3 @@
-// lib/services/connectivity_service.dart
-// Интернет холболт шалгах үйлчилгээ
-
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -17,26 +14,21 @@ class ConnectivityService {
   final StreamController<ConnectivityResult> _statusController =
   StreamController<ConnectivityResult>.broadcast();
 
-  // Getters
   bool get isConnected => _connectionStatus != ConnectivityResult.none;
   bool get isWifi => _connectionStatus == ConnectivityResult.wifi;
   bool get isMobile => _connectionStatus == ConnectivityResult.mobile;
   Stream<ConnectivityResult> get onConnectivityChanged => _statusController.stream;
   ConnectivityResult get currentStatus => _connectionStatus;
 
-  // Initialize connectivity monitoring (only once via singleton)
   Future<void> initialize() async {
-    // Skip if already initialized
     if (_subscription != null) {
       return;
     }
 
     try {
-      // Get initial status
       _connectionStatus = await _connectivity.checkConnectivity();
       _statusController.add(_connectionStatus);
 
-      // Listen for changes (only one subscription for entire app)
       _subscription = _connectivity.onConnectivityChanged.listen(
             (ConnectivityResult result) {
           _connectionStatus = result;
@@ -52,7 +44,6 @@ class ConnectivityService {
     }
   }
 
-  // Check if internet is available
   Future<bool> checkConnection() async {
     try {
       final result = await _connectivity.checkConnectivity();
@@ -64,7 +55,6 @@ class ConnectivityService {
     }
   }
 
-  // Get connection status text in Mongolian
   String getStatusText() {
     return _getStatusText(_connectionStatus);
   }
@@ -88,7 +78,6 @@ class ConnectivityService {
     }
   }
 
-  // Show connectivity snackbar
   void showConnectivitySnackBar(BuildContext context, ConnectivityResult result) {
     final isConnected = result != ConnectivityResult.none;
 
@@ -116,14 +105,12 @@ class ConnectivityService {
     );
   }
 
-  // Dispose
   void dispose() {
     _subscription?.cancel();
     _statusController.close();
   }
 }
 
-// Connectivity Provider for easy state management
 class ConnectivityProvider extends ChangeNotifier {
   final ConnectivityService _service = ConnectivityService();
   StreamSubscription<ConnectivityResult>? _subscription;

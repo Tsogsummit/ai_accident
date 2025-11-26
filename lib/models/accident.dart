@@ -1,4 +1,3 @@
-// lib/models/accident.dart - FIXED VERSION
 enum AccidentStatus { reported, confirmed, resolved, falseAlarm }
 enum AccidentSource { user, camera }
 
@@ -15,7 +14,7 @@ class Accident {
   final int? userId;
   final int? cameraId;
   final int verificationCount;
-  final bool userHasReported; // Track if current user has reported false alarm
+  final bool userHasReported;
 
   Accident({
     required this.id,
@@ -55,16 +54,12 @@ class Accident {
     );
   }
 
-  // Helper: Safely parse double from various types (String, int, double, null)
   static double _parseDouble(dynamic value) {
     if (value == null) return 0.0;
     if (value is double) return value;
     if (value is int) return value.toDouble();
-    if (value is String) {
-      return double.parse(value);
-    }
-    // Fallback: try to convert to string then parse
-    return double.parse(value.toString());
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return double.tryParse(value.toString()) ?? 0.0;
   }
 
   static AccidentStatus _parseStatus(dynamic status) {
@@ -146,7 +141,6 @@ class Accident {
     }
   }
 
-  // Mongolian display names
   String get statusMongolian {
     switch (status) {
       case AccidentStatus.reported:
@@ -169,7 +163,6 @@ class Accident {
     }
   }
 
-  // Copy method for updating accidents
   Accident copyWith({
     String? id,
     double? latitude,

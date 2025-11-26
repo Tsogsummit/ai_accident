@@ -1,4 +1,3 @@
-// lib/services/submission_service.dart
 import 'package:dio/dio.dart';
 import '../models/submission.dart';
 import '../config/api_config.dart';
@@ -16,7 +15,6 @@ class SubmissionService {
     _dio.options.headers = ApiConfig.defaultHeaders;
   }
 
-  // Get authorization header
   Future<Map<String, String>> _getHeaders() async {
     final token = await _authService.getAccessToken();
     final headers = <String, String>{};
@@ -26,7 +24,6 @@ class SubmissionService {
     return headers;
   }
 
-  // Get user's submissions (history)
   Future<List<Submission>> getUserSubmissions({
     int limit = 50,
     int offset = 0,
@@ -56,8 +53,6 @@ class SubmissionService {
       throw _handleError(e);
     }
   }
-
-  // Error handler
   String _handleError(DioException e) {
     switch (e.type) {
       case DioExceptionType.connectionTimeout:

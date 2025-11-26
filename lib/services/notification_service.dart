@@ -1,4 +1,3 @@
-// lib/services/notification_service.dart - ШИНЭ
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
@@ -18,13 +17,11 @@ class NotificationService {
         sendTimeout: ApiConfig.sendTimeout,
         headers: ApiConfig.defaultHeaders,
         validateStatus: (status) {
-          // Accept all status codes to handle errors properly
           return status != null && status < 500;
         },
       ),
     );
 
-    // Add retry interceptor
     _dio.interceptors.add(
       RetryInterceptor(
         dio: _dio,
@@ -37,7 +34,6 @@ class NotificationService {
       ),
     );
 
-    // Add auth token interceptor
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -49,10 +45,8 @@ class NotificationService {
         },
         onError: (error, handler) async {
           if (error.response?.statusCode == 401) {
-            // Try to refresh token
             final refreshed = await _authService.refreshAccessToken();
             if (refreshed) {
-              // Retry request with new token
               final token = await _authService.getAccessToken();
               error.requestOptions.headers['Authorization'] = 'Bearer $token';
               
@@ -69,7 +63,6 @@ class NotificationService {
       ),
     );
 
-    // Add logging (development only)
     if (ApiConfig.enableLogging && ApiConfig.isDevelopment) {
       _dio.interceptors.add(
         LogInterceptor(
@@ -81,10 +74,6 @@ class NotificationService {
       );
     }
   }
-
-  // ==========================================
-  // GET NOTIFICATIONS
-  // ==========================================
 
   Future<Map<String, dynamic>> getNotifications(
     int userId, {
@@ -137,10 +126,6 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // MARK AS READ
-  // ==========================================
-
   Future<bool> markAsRead(String notificationId) async {
     try {
       print('✅ Мэдэгдэл уншиж байна: id=$notificationId');
@@ -160,10 +145,6 @@ class NotificationService {
       return false;
     }
   }
-
-  // ==========================================
-  // MARK ALL AS READ
-  // ==========================================
 
   Future<bool> markAllAsRead(int userId) async {
     try {
@@ -186,10 +167,6 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // DELETE NOTIFICATION
-  // ==========================================
-
   Future<bool> deleteNotification(String notificationId, int userId) async {
     try {
       print('🗑️ Мэдэгдэл устгаж байна: id=$notificationId');
@@ -211,10 +188,6 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // GET NOTIFICATION SETTINGS
-  // ==========================================
-
   Future<Map<String, dynamic>?> getSettings(int userId) async {
     try {
       final response = await _dio.get('/notifications/settings/$userId');
@@ -229,10 +202,6 @@ class NotificationService {
       return null;
     }
   }
-
-  // ==========================================
-  // UPDATE NOTIFICATION SETTINGS
-  // ==========================================
 
   Future<bool> updateSettings({
     required int userId,
@@ -263,10 +232,6 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // REGISTER FCM TOKEN
-  // ==========================================
-
   Future<bool> registerFcmToken(int userId, String fcmToken) async {
     try {
       final response = await _dio.post(
@@ -289,10 +254,6 @@ class NotificationService {
     }
   }
 
-  // ==========================================
-  // UNREGISTER FCM TOKEN
-  // ==========================================
-
   Future<bool> unregisterFcmToken(int userId) async {
     try {
       final response = await _dio.delete(
@@ -311,10 +272,6 @@ class NotificationService {
       return false;
     }
   }
-
-  // ==========================================
-  // ERROR HANDLING
-  // ==========================================
 
   String _handleError(DioException e) {
     switch (e.type) {

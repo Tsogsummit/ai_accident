@@ -82,7 +82,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 const SizedBox(height: 24),
 
-                // Утасны дугаар
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
@@ -110,7 +109,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Нэр
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
@@ -136,7 +134,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Имэйл (заавал биш)
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -162,7 +159,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Нууц үг
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -207,7 +203,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Нууц үг баталгаажуулах
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
@@ -243,7 +238,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Бүртгүүлэх товч
                 ElevatedButton(
                   onPressed: _isLoading ? null : _register,
                   style: ElevatedButton.styleFrom(
@@ -273,7 +267,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Зааварчилгаа
                 const Text(
                   '* - Заавал бөглөх талбар',
                   style: TextStyle(

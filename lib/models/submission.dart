@@ -1,4 +1,3 @@
-// lib/models/submission.dart
 class Submission {
   final String id;
   final String userId;
@@ -6,7 +5,7 @@ class Submission {
   final double longitude;
   final String description;
   final String imageUrl;
-  final String status; // 'analyzing', 'accident_created', 'not_accident', 'error'
+  final String status; 
   final bool aiAnalyzed;
   final bool isAccident;
   final double? aiConfidence;
@@ -16,7 +15,6 @@ class Submission {
   final DateTime createdAt;
   final DateTime? analyzedAt;
 
-  // Optional accident data if linked
   final String? accidentStatus;
   final String? accidentDescription;
 
@@ -88,7 +86,6 @@ class Submission {
     };
   }
 
-  // UI helpers
   String get statusMongolian {
     switch (status) {
       case 'analyzing':

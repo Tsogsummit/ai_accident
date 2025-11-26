@@ -1,13 +1,13 @@
-// lib/screens/camera_screen.dart - FIXED WITH BETTER ERROR HANDLING
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
-import '../services/auth_service.dart'; // Add import at top
+import '../services/auth_service.dart'; 
 
 import 'dart:io';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../providers/accident_provider.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -28,7 +28,6 @@ class _CameraScreenState extends State<CameraScreen>
   String? _imagePath;
   Position? _currentPosition;
 
-  // Zoom controls
   double _currentZoom = 1.0;
   double _minZoom = 1.0;
   double _maxZoom = 1.0;
@@ -116,7 +115,6 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _initializeCamera() async {
-    // Request camera permission - this will show native iOS dialog
     var cameraStatus = await Permission.camera.request();
 
     if (cameraStatus.isPermanentlyDenied) {
@@ -141,7 +139,6 @@ class _CameraScreenState extends State<CameraScreen>
       return;
     }
 
-    // Request microphone permission - this will show native iOS dialog
     var microphoneStatus = await Permission.microphone.request();
 
     if (microphoneStatus.isPermanentlyDenied) {
@@ -174,13 +171,12 @@ class _CameraScreenState extends State<CameraScreen>
 
     _cameraController = CameraController(
       _cameras![0],
-      ResolutionPreset.high,
+      ResolutionPreset.medium, 
       enableAudio: true,
     );
 
     await _cameraController!.initialize();
 
-    // Get zoom capabilities
     _minZoom = await _cameraController!.getMinZoomLevel();
     _maxZoom = await _cameraController!.getMaxZoomLevel();
 
@@ -191,24 +187,6 @@ class _CameraScreenState extends State<CameraScreen>
       });
     }
   }
-
-  Future<void> _zoomIn() async {
-    if (!_isInitialized || _cameraController == null) return;
-
-    final newZoom = (_currentZoom + 0.5).clamp(_minZoom, _maxZoom);
-    await _cameraController!.setZoomLevel(newZoom);
-    setState(() => _currentZoom = newZoom);
-  }
-
-  Future<void> _zoomOut() async {
-    if (!_isInitialized || _cameraController == null) return;
-
-    final newZoom = (_currentZoom - 0.5).clamp(_minZoom, _maxZoom);
-    await _cameraController!.setZoomLevel(newZoom);
-    setState(() => _currentZoom = newZoom);
-  }
-
-  // Video methods removed
 
   Future<void> _takePicture() async {
     if (!_isInitialized || _cameraController == null) return;
@@ -331,11 +309,9 @@ class _CameraScreenState extends State<CameraScreen>
     final imageFile = File(_imagePath!);
     if (!await imageFile.exists()) return;
 
-    // Get location
     if (_currentPosition == null) {
       await _getCurrentLocation();
       if (_currentPosition == null) {
-        // Default location if failed
         _currentPosition = Position(
           latitude: 47.9184,
           longitude: 106.9177,
@@ -371,23 +347,34 @@ class _CameraScreenState extends State<CameraScreen>
     try {
       final provider = Provider.of<AccidentProvider>(context, listen: false);
 
+      File? compressedFile = await _compressImage(imageFile);
+      if (compressedFile == null) {
+        throw Exception('Зураг шахахад алдаа гарлаа');
+      }
+
       final result = await provider.reportImageAccident(
-        imageFile: imageFile,
+        imageFile: compressedFile,
         latitude: _currentPosition!.latitude,
         longitude: _currentPosition!.longitude,
         description: 'AI Image Report',
       );
 
+      try {
+        if (compressedFile.path != imageFile.path) {
+          compressedFile.deleteSync();
+        }
+      } catch (e) {
+        print('⚠️ Failed to delete compressed file: $e');
+      }
+
       _deleteImage();
       if (!mounted) return;
-      Navigator.pop(context); // Close loading
+      Navigator.pop(context); 
 
       if (result != null && result['success'] == true) {
         final data = result['data'];
 
-        // Check if accident was detected
         if (data != null && data['isAccident'] == false) {
-          // No accident detected
           final analysis = data['analysis'];
           showDialog(
             context: context,
@@ -420,7 +407,6 @@ class _CameraScreenState extends State<CameraScreen>
             ),
           );
         } else {
-          // Accident detected and created
           String description = '';
           if (data is Map && data['description'] != null) {
             description = data['description'];
@@ -451,10 +437,8 @@ class _CameraScreenState extends State<CameraScreen>
           );
         }
       } else {
-        // Request failed
         String errorMsg = result?['error'] ?? 'Алдаа гарлаа';
 
-        // Check for rate limit (429)
         if (result?['rateLimited'] == true) {
           final remainingMinutes = result?['remainingMinutes'] ?? 15;
           _showErrorDialog(
@@ -462,7 +446,6 @@ class _CameraScreenState extends State<CameraScreen>
             '$remainingMinutes минутын дараа дахин оролдоно уу.',
           );
         }
-        // Check for token/auth errors
         else if (errorMsg.contains('токен') || errorMsg.contains('401') || errorMsg.contains('403')) {
           _showErrorDialog('Нэвтрэлтийн хугацаа дууссан байна. Дахин нэвтрэнэ үү.');
         } else {
@@ -471,7 +454,7 @@ class _CameraScreenState extends State<CameraScreen>
       }
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context); // Close loading
+      Navigator.pop(context);
 
       String errorStr = e.toString();
       String userMessage;
@@ -529,7 +512,28 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
-  // Video upload methods removed
+  Future<File?> _compressImage(File file) async {
+    try {
+      final filePath = file.absolute.path;
+      final lastIndex = filePath.lastIndexOf(new RegExp(r'.jp'));
+      final splitted = filePath.substring(0, (lastIndex));
+      final outPath = "${splitted}_out${filePath.substring(lastIndex)}";
+      
+      var result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path, 
+        outPath,
+        quality: 70,
+        minWidth: 1024,
+        minHeight: 1024,
+      );
+      
+      if (result == null) return file;
+      return File(result.path);
+    } catch (e) {
+      print('❌ Image compression error: $e');
+      return file; 
+    }
+  }
 
   Future<void> _showPermissionDialog(
     String permissionName,
@@ -656,51 +660,38 @@ class _CameraScreenState extends State<CameraScreen>
       children: [
         Positioned.fill(child: CameraPreview(_cameraController!)),
 
-        // Zoom controls - positioned on the right side
         Positioned(
-          right: 20,
-          top: MediaQuery.of(context).size.height * 0.35,
+          bottom: 140,
+          left: 40,
+          right: 40,
           child: Column(
             children: [
-              // Zoom In button
-              FloatingActionButton(
-                heroTag: "zoom_in",
-                onPressed: _zoomIn,
-                mini: true,
-                backgroundColor: Colors.white.withOpacity(0.8),
-                child: Icon(Icons.add, color: Colors.black),
-              ),
-              SizedBox(height: 12),
-              // Zoom level indicator
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${_currentZoom.toStringAsFixed(1)}x',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(Icons.zoom_out, color: Colors.white),
+                  Text(
+                    '${_currentZoom.toStringAsFixed(1)}x',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
-                ),
+                  Icon(Icons.zoom_in, color: Colors.white),
+                ],
               ),
-              SizedBox(height: 12),
-              // Zoom Out button
-              FloatingActionButton(
-                heroTag: "zoom_out",
-                onPressed: _zoomOut,
-                mini: true,
-                backgroundColor: Colors.white.withOpacity(0.8),
-                child: Icon(Icons.remove, color: Colors.black),
+              Slider(
+                value: _currentZoom,
+                min: _minZoom,
+                max: _maxZoom,
+                activeColor: Colors.white,
+                inactiveColor: Colors.white30,
+                onChanged: (value) async {
+                  setState(() => _currentZoom = value);
+                  await _cameraController?.setZoomLevel(value);
+                },
               ),
             ],
           ),
         ),
 
-        // Camera capture button
         Positioned(
           bottom: 40,
           left: 0,

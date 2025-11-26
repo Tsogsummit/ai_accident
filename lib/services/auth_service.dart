@@ -1,4 +1,3 @@
-// lib/services/auth_service.dart - ЗАСВАРЛАСАН
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,7 +6,6 @@ import '../config/api_config.dart';
 class AuthService {
   static String get baseUrl => ApiConfig.authServiceUrl;
 
-  // ✅ Токен хадгалах
   Future<void> saveTokens(String accessToken, String refreshToken) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', accessToken);
@@ -15,26 +13,22 @@ class AuthService {
     print('✅ Токен хадгалагдлаа');
   }
 
-  // ✅ Токен авах
   Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('access_token');
   }
 
-  // ✅ Refresh token авах
   Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('refresh_token');
   }
 
-  // ✅ Хэрэглэгчийн мэдээлэл хадгалах
   Future<void> saveUser(Map<String, dynamic> user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user', jsonEncode(user));
     print('✅ Хэрэглэгчийн мэдээлэл хадгалагдлаа: ${user['name']}');
   }
 
-  // ✅ Хэрэглэгчийн мэдээлэл авах
   Future<Map<String, dynamic>?> getUser() async {
     final prefs = await SharedPreferences.getInstance();
     final userStr = prefs.getString('user');
@@ -44,13 +38,11 @@ class AuthService {
     return null;
   }
 
-  // ✅ Хэрэглэгчийн ID авах
   Future<int?> getUserId() async {
     final user = await getUser();
     return user?['id'] as int?;
   }
 
-  // ✅ НЭВТРЭХ
   Future<Map<String, dynamic>> login(String phone, String password) async {
     print('🔐 Нэвтэрч байна...');
     print('📡 URL: ${ApiConfig.loginEndpoint}');
@@ -76,10 +68,11 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success']) {
-        await saveTokens(data['accessToken'], data['refreshToken']);
-        await saveUser(data['user']);
-        print('✅ Амжилттай нэвтэрлээ: ${data['user']['name']}');
-        return {'success': true, 'user': data['user']};
+        final responseData = data['data'];
+        await saveTokens(responseData['accessToken'], responseData['refreshToken']);
+        await saveUser(responseData['user']);
+        print('✅ Амжилттай нэвтэрлээ: ${responseData['user']['name']}');
+        return {'success': true, 'user': responseData['user']};
       } else {
         print('❌ Нэвтрэлт амжилтгүй: ${data['error']}');
         return {'success': false, 'error': data['error'] ?? 'Нэвтрэхэд алдаа гарлаа'};
@@ -93,7 +86,6 @@ class AuthService {
     }
   }
 
-  // ✅ БҮРТГҮҮЛЭХ
   Future<Map<String, dynamic>> register({
     required String phone,
     required String name,
@@ -126,10 +118,11 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201 && data['success']) {
-        await saveTokens(data['accessToken'], data['refreshToken']);
-        await saveUser(data['user']);
+        final responseData = data['data'];
+        await saveTokens(responseData['accessToken'], responseData['refreshToken']);
+        await saveUser(responseData['user']);
         print('✅ Амжилттай бүртгэгдлээ');
-        return {'success': true, 'user': data['user']};
+        return {'success': true, 'user': responseData['user']};
       } else {
         print('❌ Бүртгэл амжилтгүй: ${data['error']}');
         return {'success': false, 'error': data['error'] ?? 'Бүртгэлд алдаа гарлаа'};
@@ -143,7 +136,6 @@ class AuthService {
     }
   }
 
-  // ✅ ГАРАХ - Цэвэрхэн logout
   Future<void> logout() async {
     print('🚪 Гарч байна...');
     
@@ -160,18 +152,15 @@ class AuthService {
         print('✅ Серверээс гарлаа');
       } catch (e) {
         print('⚠️ Серверээс гарах алдаа: $e');
-        // Ignore error - logout locally anyway
       }
     }
 
-    // ✅ Бүх мэдээллийг устгах
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
     await prefs.remove('user');
     print('✅ Локал мэдээлэл устгагдлаа');
   }
 
-  // ✅ Нэвтэрсэн эсэхийг шалгах
   Future<bool> isLoggedIn() async {
     final token = await getAccessToken();
     final user = await getUser();
@@ -179,8 +168,6 @@ class AuthService {
     print('🔍 Нэвтэрсэн эсэх: $isLoggedIn');
     return isLoggedIn;
   }
-
-  // ✅ ТОКЕН ШИНЭЧЛЭХ
   Future<bool> refreshAccessToken() async {
     print('🔄 Токен шинэчилж байна...');
     
@@ -201,12 +188,12 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success']) {
-        await saveTokens(data['accessToken'], data['refreshToken']);
+        final responseData = data['data'];
+        await saveTokens(responseData['accessToken'], responseData['refreshToken']);
         print('✅ Токен шинэчлэгдлээ');
         return true;
       } else {
         print('❌ Токен шинэчлэх алдаа: ${data['error']}');
-        // ✅ Токен хүчингүй бол бүх мэдээллийг устгах
         await logout();
         return false;
       }
@@ -216,7 +203,6 @@ class AuthService {
     }
   }
 
-  // ✅ ПРОФАЙЛ АВАХ
   Future<Map<String, dynamic>?> getProfile() async {
     print('👤 Профайл авч байна...');
     
@@ -238,11 +224,9 @@ class AuthService {
       print('📥 Profile response: ${response.statusCode}');
 
       if (response.statusCode == 401) {
-        // ✅ Токен хүчингүй - шинэчлэх оролдлого
         print('⚠️ Токен хүчингүй, шинэчилж байна...');
         final refreshed = await refreshAccessToken();
         if (refreshed) {
-          // Дахин оролдох
           return await getProfile();
         }
         return null;
@@ -251,9 +235,10 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success']) {
-        await saveUser(data['user']);
-        print('✅ Профайл авагдлаа: ${data['user']['name']}');
-        return data['user'];
+        final userData = data['data']['user'];
+        await saveUser(userData);
+        print('✅ Профайл авагдлаа: ${userData['name']}');
+        return userData;
       } else {
         print('❌ Профайл авах алдаа: ${data['error']}');
         return null;
@@ -264,7 +249,6 @@ class AuthService {
     }
   }
 
-  // ✅ ПРОФАЙЛ ШИНЭЧЛЭХ
   Future<Map<String, dynamic>> updateProfile({
     String? name,
     String? email,
@@ -300,11 +284,9 @@ class AuthService {
       print('📥 Update profile response: ${response.statusCode}');
 
       if (response.statusCode == 401) {
-        // ✅ Токен хүчингүй - шинэчлэх оролдлого
         print('⚠️ Токен хүчингүй, шинэчилж байна...');
         final refreshed = await refreshAccessToken();
         if (refreshed) {
-          // Дахин оролдох
           return await updateProfile(
             name: name,
             email: email,
@@ -321,12 +303,13 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success']) {
-        await saveUser(data['user']);
-        print('✅ Профайл шинэчлэгдлээ: ${data['user']['name']}');
+        final userData = data['data']['user'];
+        await saveUser(userData);
+        print('✅ Профайл шинэчлэгдлээ: ${userData['name']}');
         return {
           'success': true,
           'message': data['message'],
-          'user': data['user']
+          'user': userData
         };
       } else {
         print('❌ Профайл шинэчлэх алдаа: ${data['error']}');
@@ -344,7 +327,4 @@ class AuthService {
     }
   }
 
-  // Backward compatibility
-  @Deprecated('Use refreshAccessToken instead')
-  Future<bool> refreshToken() => refreshAccessToken();
 }

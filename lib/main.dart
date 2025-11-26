@@ -1,4 +1,3 @@
-// lib/main.dart - ЗАСВАРЛАСАН
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
@@ -25,11 +24,10 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
-          
-          cardTheme: CardThemeData(
+          cardTheme: const CardThemeData(
             elevation: 2,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             clipBehavior: Clip.antiAlias,
@@ -59,7 +57,7 @@ class _AuthCheckState extends State<AuthCheck> {
   }
 
   Future<void> _checkAuth() async {
-    await Future.delayed(const Duration(seconds: 1)); // Splash screen
+    await Future.delayed(const Duration(seconds: 1));
 
     try {
       final isLoggedIn = await _authService.isLoggedIn();
@@ -69,23 +67,19 @@ class _AuthCheckState extends State<AuthCheck> {
       setState(() => _isLoading = false);
 
       if (isLoggedIn) {
-        // ✅ Check if token is still valid by getting profile
         final profile = await _authService.getProfile();
         
         if (profile != null) {
-          // Valid token - go to home
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const HomeScreen()),
           );
         } else {
-          // Invalid token - logout and go to login
           await _authService.logout();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const LoginScreen()),
           );
         }
       } else {
-        // Not logged in - go to login
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
         );

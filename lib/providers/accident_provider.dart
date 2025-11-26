@@ -1,4 +1,3 @@
-// lib/providers/accident_provider.dart - FIXED VERSION
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../models/accident.dart';
@@ -26,7 +25,6 @@ class AccidentProvider extends ChangeNotifier {
     AccidentStatus.confirmed,
   };
 
-  // Getters
   List<Accident> get accidents => _filteredAccidents;
   List<Accident> get allAccidents => _accidents;
   bool get isLoading => _isLoading;
@@ -40,7 +38,6 @@ class AccidentProvider extends ChangeNotifier {
 
   final AccidentService _accidentService = AccidentService();
 
-  // Statistics
   int get totalAccidents => _accidents.length;
   int get visibleAccidents => _filteredAccidents.length;
   int get userAccidents =>
@@ -54,7 +51,6 @@ class AccidentProvider extends ChangeNotifier {
   int get resolvedAccidents =>
       _accidents.where((a) => a.status == AccidentStatus.resolved).length;
 
-  // Load accidents
   Future<void> loadAccidents({
     bool forceRefresh = false,
     bool userOnly = false,
@@ -89,7 +85,6 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Refresh accidents
   Future<void> refreshAccidents() async {
     if (_isRefreshing) return;
 
@@ -116,7 +111,6 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Load nearby accidents
   Future<void> loadNearbyAccidents(
     double latitude,
     double longitude, {
@@ -150,7 +144,6 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ Report accident with Image (Gemini)
   Future<Map<String, dynamic>?> reportImageAccident({
     required File imageFile,
     required double latitude,
@@ -166,7 +159,6 @@ class AccidentProvider extends ChangeNotifier {
 
       print('📸 Зураг илгээж байна...');
 
-      // Use raw method to get full response
       final result = await _accidentService.reportImageAccidentRaw(
         latitude: latitude,
         longitude: longitude,
@@ -185,23 +177,19 @@ class AccidentProvider extends ChangeNotifier {
       _uploadProgress = 0.0;
       notifyListeners();
 
-      // Check if accident was created
       if (result['success'] == true) {
         final data = result['data'];
 
         if (data != null && data is Map && data['id'] != null) {
-          // Accident was created
           print('✅ Осол бүртгэгдлээ. ID: ${data['id']}');
           await loadAccidents(forceRefresh: true);
           return result;
         } else if (data != null && data['isAccident'] == false) {
-          // No accident detected
           print('ℹ️ Осол илрээгүй');
           return result;
         }
       }
 
-      // Return result as-is
       return result;
     } catch (e) {
       _error = e.toString();
@@ -210,7 +198,6 @@ class AccidentProvider extends ChangeNotifier {
       _uploadProgress = 0.0;
       notifyListeners();
 
-      // Return error as map instead of rethrowing
       return {
         'success': false,
         'error': _error,
@@ -218,7 +205,6 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Update accident
   Future<bool> updateAccident(
     String accidentId, {
     String? description,
@@ -248,7 +234,6 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Verify accident
   Future<bool> verifyAccident(String accidentId) async {
     try {
       _error = '';
@@ -272,7 +257,6 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Report false accident (using new FalseReportService)
   Future<bool> reportFalseAccident({
     required int accidentId,
     required int userId,
@@ -282,7 +266,6 @@ class AccidentProvider extends ChangeNotifier {
     try {
       _error = '';
 
-      // Import FalseReportService at the top of the file
       final falseReportService = FalseReportService();
 
       final result = await falseReportService.reportFalseAlarm(
@@ -304,8 +287,6 @@ class AccidentProvider extends ChangeNotifier {
       return false;
     }
   }
-
-  // Delete accident
   Future<bool> deleteAccident(String accidentId) async {
     try {
       _error = '';
@@ -324,7 +305,6 @@ class AccidentProvider extends ChangeNotifier {
     }
   }
 
-  // Filter methods
   void toggleSourceFilter(AccidentSource source) {
     if (_sourceFilters.contains(source)) {
       _sourceFilters.remove(source);

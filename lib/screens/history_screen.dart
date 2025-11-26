@@ -1,4 +1,3 @@
-// lib/screens/history_screen.dart - Updated with Submissions
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';
@@ -23,7 +22,7 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
   final AuthService _authService = AuthService();
   final SubmissionService _submissionService = SubmissionService();
-  String _selectedFilter = 'all'; // all, accidents, submissions
+  String _selectedFilter = 'all';
   bool _isInitialized = false;
   List<Submission> _submissions = [];
 
@@ -33,14 +32,11 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
     _initializeAndLoadData();
   }
 
-  // ✅ Эхлээд token шалгаад, дараа нь өгөгдөл ачаалах
   Future<void> _initializeAndLoadData() async {
-    // Check if logged in
     final token = await _authService.getAccessToken();
     final user = await _authService.getUser();
     
     if (token == null || user == null) {
-      // ✅ Нэвтрээгүй бол Login screen руу шилжүүлэх
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -57,7 +53,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
       return;
     }
 
-    // ✅ Logged in - load data (only user's own accidents)
     if (mounted) {
       setState(() {
         _isInitialized = true;
@@ -66,14 +61,12 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
       final provider = Provider.of<AccidentProvider>(context, listen: false);
 
       try {
-        // Load both accidents and submissions in parallel
         await Future.wait([
           provider.loadAccidents(userOnly: true),
           _loadSubmissions(),
         ]);
       } catch (e) {
         print('❌ Load data error: $e');
-        // Don't navigate away on error, just show error in UI
       }
     }
   }
@@ -89,12 +82,10 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
       print('✅ Loaded ${submissions.length} submissions');
     } catch (e) {
       print('❌ Load submissions error: $e');
-      // Don't throw - just keep empty list
     }
   }
 
   Future<void> _refreshData() async {
-    // Don't check token here - let the API call handle it
     if (mounted) {
       final provider = Provider.of<AccidentProvider>(context, listen: false);
 
@@ -104,18 +95,16 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
           _loadSubmissions(),
         ]);
 
-        // Clear any previous errors
         provider.clearError();
       } catch (e) {
         print('❌ Refresh error: $e');
-        // Error will be shown in UI through provider
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context); 
 
     if (!_isInitialized) {
       return Scaffold(
@@ -141,7 +130,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
         title: const Text('Ослын түүх'),
         backgroundColor: Colors.blue,
         actions: [
-          // Filter dropdown
           PopupMenuButton<String>(
             initialValue: _selectedFilter,
             icon: Icon(Icons.filter_list),
@@ -206,7 +194,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
             );
           }
 
-          // ✅ Check for authentication error
           if (provider.error.isNotEmpty) {
             final errorLower = provider.error.toLowerCase();
             
@@ -214,7 +201,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                 errorLower.contains('эрх дууссан') ||
                 errorLower.contains('unauthorized') ||
                 errorLower.contains('401')) {
-              // Token expired - show button to re-login
               return Center(
                 child: Padding(
                   padding: EdgeInsets.all(20),
@@ -256,7 +242,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
               );
             }
 
-            // Other errors
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -284,7 +269,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
             );
           }
 
-          // Build combined list
           List<dynamic> items = [];
 
           if (_selectedFilter == 'all' || _selectedFilter == 'accidents') {
@@ -295,7 +279,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
             items.addAll(_submissions);
           }
 
-          // Sort by timestamp (newest first)
           items.sort((a, b) {
             DateTime aTime = a is Accident ? a.timestamp : (a as Submission).createdAt;
             DateTime bTime = b is Accident ? b.timestamp : (b as Submission).createdAt;
@@ -351,10 +334,8 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header row
               Row(
                 children: [
-                  // Source icon
                   Container(
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -369,7 +350,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   ),
                   SizedBox(width: 12),
 
-                  // Info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,7 +375,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
               SizedBox(height: 12),
 
-              // Description
               if (accident.description.isNotEmpty) ...[
                 Text(
                   _stripDuration(accident.description),
@@ -406,7 +385,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                 SizedBox(height: 8),
               ],
 
-              // Footer row
               Row(
                 children: [
                   Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
@@ -436,7 +414,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                 ],
               ),
 
-              // Status
               SizedBox(height: 8),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -475,10 +452,8 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header row
               Row(
                 children: [
-                  // Image icon
                   Container(
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -493,7 +468,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   ),
                   SizedBox(width: 12),
 
-                  // Info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,7 +488,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                     ),
                   ),
 
-                  // Status badge
                   if (submission.isRejected)
                     Icon(Icons.cancel, color: Colors.red, size: 24),
                 ],
@@ -522,7 +495,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
               SizedBox(height: 12),
 
-              // Description
               if (submission.description.isNotEmpty) ...[
                 Text(
                   submission.description,
@@ -533,7 +505,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                 SizedBox(height: 8),
               ],
 
-              // Footer row
               Row(
                 children: [
                   Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
@@ -545,7 +516,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                 ],
               ),
 
-              // Status
               SizedBox(height: 8),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -590,7 +560,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Handle
                   Center(
                     child: Container(
                       width: 40,
@@ -603,7 +572,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   ),
                   SizedBox(height: 20),
 
-                  // Title
                   Row(
                     children: [
                       Icon(
@@ -636,7 +604,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
                   SizedBox(height: 20),
 
-                  // Details
                   _buildDetailRow('Төлөв', accident.statusMongolian, Icons.info, _getStatusColor(accident.status)),
                   _buildDetailRow('Огноо цаг', _formatDateTime(accident.timestamp), Icons.access_time, Colors.grey[700]!),
                   _buildDetailRow('Байршил', '${accident.latitude.toStringAsFixed(6)}, ${accident.longitude.toStringAsFixed(6)}', Icons.location_on, Colors.red),
@@ -653,7 +620,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
                   SizedBox(height: 24),
 
-                  // Actions
                   Row(
                     children: [
                       Expanded(
@@ -683,7 +649,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                                   );
 
                                   if (result == true && mounted) {
-                                    // Refresh the data
                                     _refreshData();
                                     Navigator.pop(context);
                                   }
@@ -743,7 +708,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
   }
 
   String _stripDuration(String description) {
-    // Remove duration like (0:45) or (1:23) from the end
     return description.replaceAll(RegExp(r'\s*\(\d+:\d+\)\s*$'), '');
   }
 
@@ -805,7 +769,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Handle
                   Center(
                     child: Container(
                       width: 40,
@@ -818,7 +781,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   ),
                   SizedBox(height: 20),
 
-                  // Title
                   Row(
                     children: [
                       Icon(Icons.image, color: _getSubmissionStatusColor(submission.status), size: 28),
@@ -843,7 +805,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
                   SizedBox(height: 20),
 
-                  // Image preview (if available)
                   if (submission.imageUrl.isNotEmpty) ...[
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
@@ -873,7 +834,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                     SizedBox(height: 20),
                   ],
 
-                  // Details
                   _buildDetailRow('Төлөв', submission.statusMongolian, Icons.info, _getSubmissionStatusColor(submission.status)),
                   _buildDetailRow('Огноо цаг', _formatDateTime(submission.createdAt), Icons.access_time, Colors.grey[700]!),
                   _buildDetailRow('Байршил', '${submission.latitude.toStringAsFixed(6)}, ${submission.longitude.toStringAsFixed(6)}', Icons.location_on, Colors.red),
@@ -911,7 +871,6 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
                   SizedBox(height: 24),
 
-                  // Close button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

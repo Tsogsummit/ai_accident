@@ -1,4 +1,3 @@
-// lib/screens/notifications_screen.dart - BACKEND ХОЛБОСОН
 import 'package:flutter/material.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
@@ -55,12 +54,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
       print('📬 Loading notifications for userId: $userId');
 
-      // Load notifications
       final result = await _notificationService.getNotifications(userId);
       
       print('📥 Notification Result: ${result['success']}');
       
-      // Load ALL confirmed accidents (nearby from any user)
       print('📬 Loading all confirmed accidents...');
       List<Accident> confirmedAccidents = [];
       try {
@@ -68,12 +65,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           status: AccidentStatus.confirmed,
           limit: 100,
           forceRefresh: true,
-          userOnly: false, // Show accidents from ALL users
+          userOnly: false, 
         );
         print('✅ All confirmed accidents loaded: ${confirmedAccidents.length}');
       } catch (e) {
         print('⚠️ Failed to load confirmed accidents: $e');
-        // Don't fail the whole load if this fails
       }
       
       if (result['success']) {
@@ -86,28 +82,26 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         });
         print('✅ Notifications loaded: ${_notifications.length}, Confirmed accidents: ${_confirmedAccidents.length}');
       } else {
-        // Even if notifications fail, show confirmed accidents
         setState(() {
           _notifications = [];
           _unreadCount = 0;
           _confirmedAccidents = confirmedAccidents;
           _error = confirmedAccidents.isEmpty 
               ? (result['error'] ?? 'Мэдэгдэл ачаалагдсангүй')
-              : null; // Don't show error if we have confirmed accidents
+              : null; 
           _isLoading = false;
         });
         print('❌ Load failed: ${result['error']}, but showing ${confirmedAccidents.length} confirmed accidents');
       }
     } catch (e) {
       print('❌ Load notifications exception: $e');
-      // Try to load ALL confirmed accidents even if notifications fail
       List<Accident> confirmedAccidents = [];
       try {
         confirmedAccidents = await _accidentService.getAllAccidents(
           status: AccidentStatus.confirmed,
           limit: 100,
           forceRefresh: true,
-          userOnly: false, // Show accidents from ALL users
+          userOnly: false,
         );
         print('✅ Loaded ${confirmedAccidents.length} confirmed accidents as fallback');
       } catch (accidentError) {
@@ -127,7 +121,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Future<void> _markAsRead(String notificationId) async {
     try {
       await _notificationService.markAsRead(notificationId);
-      await _loadNotifications(); // Refresh
+      await _loadNotifications();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -152,7 +146,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ),
       );
       
-      await _loadNotifications(); // Refresh
+      await _loadNotifications();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -177,7 +171,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ),
       );
       
-      await _loadNotifications(); // Refresh
+      await _loadNotifications(); 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -193,7 +187,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     String testResult = 'Туршиж байна...';
     bool isLoading = true;
 
-    // Test API connection
     if (userId != null) {
       try {
         final result = await _notificationService.getNotifications(userId);
@@ -293,7 +286,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -377,7 +370,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               SizedBox(height: 12),
               TextButton.icon(
                 onPressed: () {
-                  // Show API test dialog
                   _showApiTestDialog();
                 },
                 icon: Icon(Icons.bug_report, size: 18),
@@ -389,7 +381,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       );
     }
 
-    // Show confirmed accidents if no notifications
     final totalItems = _notifications.length + _confirmedAccidents.length;
     
     if (totalItems == 0) {
@@ -419,7 +410,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         padding: EdgeInsets.all(8),
         itemCount: totalItems,
         itemBuilder: (context, index) {
-          // Show notifications first, then confirmed accidents
           if (index < _notifications.length) {
             final notification = _notifications[index];
             return _buildNotificationCard(notification);
@@ -440,7 +430,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final sentAt = notification['sent_at'];
     final type = notification['type'] ?? 'general';
     
-    // Time formatting
     String timeAgo = 'Цаг тодорхойгүй';
     if (sentAt != null) {
       try {
@@ -461,7 +450,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       }
     }
 
-    // Icon based on type
     IconData icon;
     Color iconColor;
     
@@ -611,7 +599,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       color: Colors.green.shade50,
       child: InkWell(
         onTap: () {
-          // Navigate to map screen and show accident location
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -695,8 +682,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                               userHasReported: accident.userHasReported,
                             ),
                           );
-                          if (result == true) {
-                            // Reload notifications to reflect status change
+                          if (result == true) { 
                             if (mounted) {
                               _loadNotifications();
                             }

@@ -1,4 +1,3 @@
-// lib/services/accident_service.dart - TOKEN FIXED
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -11,7 +10,6 @@ class AccidentService {
   late final Dio _dio;
   final AuthService _authService = AuthService();
 
-  // Cache for accidents
   List<Accident>? _cachedAccidents;
   DateTime? _cacheTimestamp;
 
@@ -26,7 +24,6 @@ class AccidentService {
       ),
     );
 
-    // ✅ Add retry interceptor
     _dio.interceptors.add(
       RetryInterceptor(
         dio: _dio,
@@ -40,7 +37,6 @@ class AccidentService {
       ),
     );
 
-    // ✅ Add logging interceptor (development only)
     if (ApiConfig.enableLogging && ApiConfig.isDevelopment) {
       _dio.interceptors.add(
         LogInterceptor(
@@ -48,17 +44,15 @@ class AccidentService {
           requestBody: true,
           responseBody: true,
           error: true,
-          requestHeader: true, // ✅ Log headers
+          requestHeader: true,
           responseHeader: false,
         ),
       );
     }
 
-    // ✅ Add auth token interceptor - MOST IMPORTANT!
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // ✅ Get token and add to header
           final token = await _authService.getAccessToken();
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
@@ -69,17 +63,14 @@ class AccidentService {
           return handler.next(options);
         },
         onError: (error, handler) async {
-          // Handle 401 errors (unauthorized)
           if (error.response?.statusCode == 401) {
             print('⚠️ 401 Unauthorized - Token хүчингүй');
 
-            // Try to refresh token
             final refreshed = await _authService.refreshAccessToken();
 
             if (refreshed) {
               print('✅ Token шинэчлэгдлээ, дахин оролдож байна...');
 
-              // Retry request with new token
               final newToken = await _authService.getAccessToken();
               error.requestOptions.headers['Authorization'] =
                   'Bearer $newToken';
@@ -93,7 +84,6 @@ class AccidentService {
               }
             } else {
               print('❌ Token шинэчлэх амжилтгүй - logout хийх хэрэгтэй');
-              // Token expired and can't refresh - need to logout
               await _authService.logout();
             }
           }
@@ -103,7 +93,6 @@ class AccidentService {
     );
   }
 
-  // Check if cache is valid
   bool _isCacheValid() {
     if (!ApiConfig.enableCaching) return false;
     if (_cachedAccidents == null || _cacheTimestamp == null) return false;
@@ -113,13 +102,11 @@ class AccidentService {
     return cacheAge < ApiConfig.cacheValidDuration;
   }
 
-  // Clear cache
   void clearCache() {
     _cachedAccidents = null;
     _cacheTimestamp = null;
   }
 
-  // ✅ Get all accidents with caching
   Future<List<Accident>> getAllAccidents({
     AccidentSource? source,
     AccidentStatus? status,
@@ -131,7 +118,6 @@ class AccidentService {
     bool forceRefresh = false,
     bool userOnly = false,
   }) async {
-    // Return cached data if valid
     if (!forceRefresh && _isCacheValid()) {
       print('📦 Cache-с ослын мэдээлэл буцаах: ${_cachedAccidents!.length}');
       return _cachedAccidents!;
@@ -181,7 +167,6 @@ class AccidentService {
 
       print('✅ ${accidents.length} осол ачаалагдлаа');
 
-      // Update cache
       _cachedAccidents = accidents;
       _cacheTimestamp = DateTime.now();
 
@@ -190,7 +175,6 @@ class AccidentService {
       print('❌ DioException: ${e.type} - ${e.message}');
       print('❌ Response: ${e.response?.data}');
 
-      // If there's cached data and network error, return cached data
       if (_cachedAccidents != null && _isNetworkError(e)) {
         print('⚠️ Сүлжээний алдаа - кэш өгөгдөл ашиглаж байна');
         return _cachedAccidents!;
@@ -202,7 +186,6 @@ class AccidentService {
     }
   }
 
-  // ✅ Get nearby accidents
   Future<List<Accident>> getNearbyAccidents(
     double latitude,
     double longitude, {
@@ -214,7 +197,7 @@ class AccidentService {
         queryParameters: {
           'latitude': latitude,
           'longitude': longitude,
-          'radius': radiusKm * 1000, // Convert to meters
+          'radius': radiusKm * 1000,
         },
       );
 
@@ -229,7 +212,6 @@ class AccidentService {
     }
   }
 
-  // ✅ Get accident by ID
   Future<Accident?> getAccidentById(String accidentId) async {
     try {
       final response = await _dio.get(
@@ -248,7 +230,6 @@ class AccidentService {
     }
   }
 
-  // ✅ Report new accident with progress callback
   Future<Accident> reportAccident({
     required double latitude,
     required double longitude,
@@ -264,7 +245,6 @@ class AccidentService {
         'description': description,
       });
 
-      // Add image if provided
       if (imageFile != null) {
         formData.files.add(
           MapEntry(
@@ -277,7 +257,6 @@ class AccidentService {
         );
       }
 
-      // Add video if provided
       if (videoFile != null) {
         formData.files.add(
           MapEntry(
@@ -296,7 +275,6 @@ class AccidentService {
         onSendProgress: onProgress,
       );
 
-      // Clear cache after successful report
       clearCache();
 
       if (response.data is Map && response.data['success'] == true) {
@@ -311,8 +289,6 @@ class AccidentService {
     }
   }
 
-  // ✅ Report accident with Image (Gemini)
-  // Returns Map with: {success, isAccident, data/analysis, message}
   Future<Map<String, dynamic>> reportImageAccidentRaw({
     required double latitude,
     required double longitude,
@@ -334,14 +310,12 @@ class AccidentService {
       final url = ApiConfig.reportImageEndpoint;
       print('📸 Uploading image report to: $url');
 
-      // Create separate Dio instance WITHOUT retry for multipart uploads
       final dio = Dio(BaseOptions(
         connectTimeout: Duration(seconds: 30),
         sendTimeout: Duration(seconds: 60),
         receiveTimeout: Duration(seconds: 60),
       ));
 
-      // Add auth token manually
       final token = await _authService.getAccessToken();
 
       final response = await dio.post(
@@ -356,10 +330,8 @@ class AccidentService {
         ),
       );
 
-      // Clear cache after successful report
       clearCache();
 
-      // Handle response - could be String or Map
       dynamic responseData = response.data;
       if (responseData is String) {
         responseData = jsonDecode(responseData);
@@ -375,7 +347,6 @@ class AccidentService {
     }
   }
 
-  // Legacy method for backward compatibility
   Future<Accident> reportImageAccident({
     required double latitude,
     required double longitude,
@@ -391,16 +362,13 @@ class AccidentService {
       onProgress: onProgress,
     );
 
-    // Check if accident was created
     if (result['success'] == true && result['data'] != null) {
       final data = result['data'];
 
-      // If it's accident data (has id), return Accident
       if (data is Map && data['id'] != null) {
         return Accident.fromJson(Map<String, dynamic>.from(data));
       }
 
-      // If no accident (isAccident = false), throw with message
       if (data['isAccident'] == false) {
         throw Exception(result['message'] ?? 'Осол илрээгүй');
       }
@@ -409,7 +377,6 @@ class AccidentService {
     throw Exception(result['error'] ?? 'Осол мэдээлэхэд алдаа гарлаа');
   }
 
-  // ✅ Update accident
   Future<Accident> updateAccident(
     String accidentId, {
     String? description,
@@ -426,7 +393,6 @@ class AccidentService {
         data: data,
       );
 
-      // Clear cache after update
       clearCache();
 
       if (response.data is Map && response.data['success'] == true) {
@@ -441,14 +407,12 @@ class AccidentService {
     }
   }
 
-  // ✅ Delete accident
   Future<bool> deleteAccident(String accidentId) async {
     try {
       final response = await _dio.delete(
         '${ApiConfig.accidentsEndpoint}/$accidentId',
       );
 
-      // Clear cache after delete
       clearCache();
 
       return response.data?['success'] == true;
@@ -457,14 +421,12 @@ class AccidentService {
     }
   }
 
-  // ✅ Verify accident
   Future<bool> verifyAccident(String accidentId) async {
     try {
       final response = await _dio.post(
         '${ApiConfig.accidentsEndpoint}/$accidentId/verify',
       );
 
-      // Clear cache after verification
       clearCache();
 
       return response.data?['success'] == true;
@@ -473,21 +435,17 @@ class AccidentService {
     }
   }
 
-  // ✅ Report false accident (deprecated - use FalseReportService instead)
   Future<bool> reportFalseAccident(
     String accidentId, {
     required String reason,
     String? comment,
   }) async {
-    // This method is kept for backward compatibility
-    // New code should use FalseReportService
     try {
       final response = await _dio.post(
         '${ApiConfig.accidentsEndpoint}/$accidentId/false-report',
         data: {'reason': reason, 'comment': comment},
       );
 
-      // Clear cache after reporting false
       clearCache();
 
       return response.data?['success'] == true;
@@ -496,7 +454,6 @@ class AccidentService {
     }
   }
 
-  // ✅ Get accident statistics
   Future<Map<String, dynamic>> getStatistics() async {
     try {
       final response = await _dio.get(
@@ -513,7 +470,6 @@ class AccidentService {
     }
   }
 
-  // ✅ AI Image Analysis
   Future<Map<String, dynamic>> analyzeImage(
     File imageFile, {
     Function(int sent, int total)? onProgress,
@@ -539,7 +495,6 @@ class AccidentService {
     }
   }
 
-  // Helper: Check if error is network-related
   bool _isNetworkError(DioException e) {
     return e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.sendTimeout ||
@@ -547,7 +502,6 @@ class AccidentService {
         e.type == DioExceptionType.connectionError;
   }
 
-  // Helper: Convert status to string
   String _statusToString(AccidentStatus status) {
     switch (status) {
       case AccidentStatus.reported:
@@ -561,7 +515,6 @@ class AccidentService {
     }
   }
 
-  // ✅ Enhanced error handler with better Mongolian messages
   String _handleError(DioException e) {
     print('❌ API Алдаа: ${e.type} - ${e.message}');
     print('❌ Response status: ${e.response?.statusCode}');
@@ -617,7 +570,6 @@ class AccidentService {
     }
   }
 
-  // Dispose method
   void dispose() {
     _dio.close();
   }

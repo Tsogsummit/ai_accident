@@ -32,7 +32,6 @@ class AccidentBottomSheet extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Handle bar
                   Center(
                     child: Container(
                       width: 40,
@@ -45,7 +44,6 @@ class AccidentBottomSheet extends StatelessWidget {
                   ),
                   SizedBox(height: 20),
                   
-                  // Title
                   Row(
                     children: [
                       Icon(
@@ -67,7 +65,6 @@ class AccidentBottomSheet extends StatelessWidget {
                   
                   SizedBox(height: 16),
                   
-                  // Description
                   Text(
                     'Тайлбар:',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -81,8 +78,7 @@ class AccidentBottomSheet extends StatelessWidget {
                   ),
                   
                   SizedBox(height: 16),
-                  
-                  // Time
+                
                   Row(
                     children: [
                       Icon(Icons.access_time, color: Colors.grey[600], size: 20),
@@ -98,7 +94,6 @@ class AccidentBottomSheet extends StatelessWidget {
                   
                   SizedBox(height: 12),
                   
-                  // Location
                   Row(
                     children: [
                       Icon(Icons.location_on, color: Colors.grey[600], size: 20),
@@ -116,7 +111,6 @@ class AccidentBottomSheet extends StatelessWidget {
                   
                   SizedBox(height: 12),
                   
-                  // Status
                   Row(
                     children: [
                       Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
@@ -132,13 +126,11 @@ class AccidentBottomSheet extends StatelessWidget {
                   
                   SizedBox(height: 24),
                   
-                  // Action buttons
                   Row(
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            // Navigate to the location
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Зам харуулах үйлдэл')),
@@ -155,7 +147,6 @@ class AccidentBottomSheet extends StatelessWidget {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            // Report or update
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Мэдээлэх үйлдэл')),
@@ -171,7 +162,6 @@ class AccidentBottomSheet extends StatelessWidget {
                     ],
                   ),
                   
-                  // Add some padding at the bottom for better UX
                   SizedBox(height: MediaQuery.of(context).padding.bottom),
                 ],
               ),
