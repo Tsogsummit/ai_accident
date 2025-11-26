@@ -63,7 +63,7 @@ class FalseReportService {
 
       if (response.data is Map && response.data['success'] == true) {
         final falseReportCount = response.data['falseReportCount'] ?? 0;
-        print('✅ False report submitted. Total reports: $falseReportCount');
+        print(' False report submitted. Total reports: $falseReportCount');
         return {
           'success': true,
           'falseReportCount': falseReportCount,
@@ -72,7 +72,7 @@ class FalseReportService {
       }
 
       if (response.data is Map && response.data['alreadyReported'] == true) {
-        print('⚠️ User has already reported this accident');
+        print(' User has already reported this accident');
         return {
           'success': false,
           'alreadyReported': true,
@@ -90,7 +90,8 @@ class FalseReportService {
       if (e.response != null) {
         print('Response: ${e.response?.data}');
 
-        if (e.response?.data is Map && e.response?.data['alreadyReported'] == true) {
+        if (e.response?.data is Map &&
+            e.response?.data['alreadyReported'] == true) {
           return {
             'success': false,
             'alreadyReported': true,
@@ -106,4 +107,3 @@ class FalseReportService {
     }
   }
 }
-

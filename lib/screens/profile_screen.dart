@@ -13,7 +13,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
-  
+
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   String? _error;
@@ -32,7 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final localUser = await _authService.getUser();
-      
+
       if (localUser != null) {
         setState(() {
           _userData = localUser;
@@ -41,7 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       final serverUser = await _authService.getProfile();
-      
+
       if (serverUser != null) {
         setState(() {
           _userData = serverUser;
@@ -53,7 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      print('❌ Profile load error: $e');
+      print(' Profile load error: $e');
       setState(() {
         _error = 'Алдаа гарлаа: $e';
       });
@@ -122,7 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Амжилттай гарлаа'),
+            content: Text(' Амжилттай гарлаа'),
             backgroundColor: Colors.green,
           ),
         );
@@ -133,7 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Гарахад алдаа: $e'),
+            content: Text(' Гарахад алдаа: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -142,9 +142,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showEditProfileDialog() async {
-    final nameController = TextEditingController(text: _userData?['name'] ?? '');
-    final phoneController = TextEditingController(text: _userData?['phone'] ?? '');
-    final emailController = TextEditingController(text: _userData?['email'] ?? '');
+    final nameController = TextEditingController(
+      text: _userData?['name'] ?? '',
+    );
+    final phoneController = TextEditingController(
+      text: _userData?['phone'] ?? '',
+    );
+    final emailController = TextEditingController(
+      text: _userData?['email'] ?? '',
+    );
     final passwordController = TextEditingController();
     bool obscurePassword = true;
 
@@ -229,7 +235,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     prefixIcon: Icon(Icons.lock),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
                       onPressed: () {
                         setState(() {
@@ -297,9 +305,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       try {
         final response = await _authService.updateProfile(
-          name: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
-          phone: phoneController.text.trim().isNotEmpty ? phoneController.text.trim() : null,
-          email: emailController.text.trim().isNotEmpty ? emailController.text.trim() : null,
+          name: nameController.text.trim().isNotEmpty
+              ? nameController.text.trim()
+              : null,
+          phone: phoneController.text.trim().isNotEmpty
+              ? phoneController.text.trim()
+              : null,
+          email: emailController.text.trim().isNotEmpty
+              ? emailController.text.trim()
+              : null,
           currentPassword: passwordController.text,
         );
 
@@ -314,14 +328,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ ${response['message'] ?? 'Амжилттай хадгалагдлаа'}'),
+              content: Text(
+                ' ${response['message'] ?? 'Амжилттай хадгалагдлаа'}',
+              ),
               backgroundColor: Colors.green,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('❌ ${response['error'] ?? 'Алдаа гарлаа'}'),
+              content: Text(' ${response['error'] ?? 'Алдаа гарлаа'}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -333,7 +349,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Алдаа гарлаа: $e'),
+            content: Text(' Алдаа гарлаа: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -378,38 +394,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             )
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        SizedBox(height: 16),
-                        Text(
-                          'Алдаа гарлаа',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[700]),
-                        ),
-                        SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: _loadUserData,
-                          icon: Icon(Icons.refresh),
-                          label: Text('Дахин оролдох'),
-                        ),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    SizedBox(height: 16),
+                    Text(
+                      'Алдаа гарлаа',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                )
-              : _buildProfileContent(),
+                    SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                    SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _loadUserData,
+                      icon: Icon(Icons.refresh),
+                      label: Text('Дахин оролдох'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _buildProfileContent(),
     );
   }
 
@@ -448,7 +464,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
-              
+
               if (_userData?['email'] != null) ...[
                 SizedBox(height: 4),
                 Row(
@@ -551,10 +567,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Icon(icon, size: 20, color: color),
             SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(fontSize: 15),
-            ),
+            Text(label, style: TextStyle(fontSize: 15)),
           ],
         ),
         Text(

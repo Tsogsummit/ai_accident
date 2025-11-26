@@ -62,21 +62,21 @@ class AccidentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('📡 Ослын мэдээлэл татаж байна...');
+      print(' Ослын мэдээлэл татаж байна...');
 
       _accidents = await _accidentService.getAllAccidents(
         forceRefresh: forceRefresh,
         userOnly: userOnly,
       );
 
-      print('✅ ${_accidents.length} осол ачаалагдлаа');
+      print(' ${_accidents.length} осол ачаалагдлаа');
 
       _applyFilters();
       _lastFetchTime = DateTime.now();
       _error = '';
     } catch (e) {
       _error = 'Ослын мэдээлэл татахад алдаа гарлаа: ${e.toString()}';
-      print('❌ Ослын мэдээлэл ачаалахад алдаа: $_error');
+      print(' Ослын мэдээлэл ачаалахад алдаа: $_error');
       _accidents = [];
       _applyFilters();
     } finally {
@@ -93,18 +93,18 @@ class AccidentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('🔄 Мэдээлэл шинэчилж байна...');
+      print(' Мэдээлэл шинэчилж байна...');
 
       _accidents = await _accidentService.getAllAccidents(forceRefresh: true);
 
-      print('✅ ${_accidents.length} осол шинэчлэгдлээ');
+      print(' ${_accidents.length} осол шинэчлэгдлээ');
 
       _applyFilters();
       _lastFetchTime = DateTime.now();
       _error = '';
     } catch (e) {
       _error = 'Мэдээлэл шинэчлэхэд алдаа гарлаа: ${e.toString()}';
-      print('❌ Мэдээлэл шинэчлэхэд алдаа: $_error');
+      print(' Мэдээлэл шинэчлэхэд алдаа: $_error');
     } finally {
       _isRefreshing = false;
       notifyListeners();
@@ -121,7 +121,7 @@ class AccidentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('📍 Ойролцоох ослын мэдээлэл татаж байна...');
+      print(' Ойролцоох ослын мэдээлэл татаж байна...');
 
       _accidents = await _accidentService.getNearbyAccidents(
         latitude,
@@ -129,13 +129,13 @@ class AccidentProvider extends ChangeNotifier {
         radiusKm: radiusKm,
       );
 
-      print('✅ ${_accidents.length} осол олдлоо');
+      print(' ${_accidents.length} осол олдлоо');
 
       _applyFilters();
       _lastFetchTime = DateTime.now();
     } catch (e) {
       _error = 'Ойролцоох ослын мэдээлэл авахад алдаа гарлаа: ${e.toString()}';
-      print('❌ Ойр дахь ослын мэдээлэл ачаалахад алдаа: $_error');
+      print(' Ойр дахь ослын мэдээлэл ачаалахад алдаа: $_error');
       _accidents = [];
       _applyFilters();
     } finally {
@@ -157,7 +157,7 @@ class AccidentProvider extends ChangeNotifier {
       _error = '';
       notifyListeners();
 
-      print('📸 Зураг илгээж байна...');
+      print(' Зураг илгээж байна...');
 
       final result = await _accidentService.reportImageAccidentRaw(
         latitude: latitude,
@@ -181,11 +181,11 @@ class AccidentProvider extends ChangeNotifier {
         final data = result['data'];
 
         if (data != null && data is Map && data['id'] != null) {
-          print('✅ Осол бүртгэгдлээ. ID: ${data['id']}');
+          print(' Осол бүртгэгдлээ. ID: ${data['id']}');
           await loadAccidents(forceRefresh: true);
           return result;
         } else if (data != null && data['isAccident'] == false) {
-          print('ℹ️ Осол илрээгүй');
+          print('ℹ Осол илрээгүй');
           return result;
         }
       }
@@ -193,15 +193,12 @@ class AccidentProvider extends ChangeNotifier {
       return result;
     } catch (e) {
       _error = e.toString();
-      print('❌ Зураг илгээхэд алдаа: $_error');
+      print(' Зураг илгээхэд алдаа: $_error');
       _isUploading = false;
       _uploadProgress = 0.0;
       notifyListeners();
 
-      return {
-        'success': false,
-        'error': _error,
-      };
+      return {'success': false, 'error': _error};
     }
   }
 
@@ -287,6 +284,7 @@ class AccidentProvider extends ChangeNotifier {
       return false;
     }
   }
+
   Future<bool> deleteAccident(String accidentId) async {
     try {
       _error = '';

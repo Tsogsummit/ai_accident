@@ -13,16 +13,15 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> 
+class _NotificationsScreenState extends State<NotificationsScreen>
     with AutomaticKeepAliveClientMixin {
-  
   @override
   bool get wantKeepAlive => true;
 
   final NotificationService _notificationService = NotificationService();
   final AuthService _authService = AuthService();
   final AccidentService _accidentService = AccidentService();
-  
+
   List<Map<String, dynamic>> _notifications = [];
   List<Accident> _confirmedAccidents = [];
   bool _isLoading = true;
@@ -43,7 +42,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
     try {
       final userId = await _authService.getUserId();
-      
+
       if (userId == null) {
         setState(() {
           _error = 'Хэрэглэгч олдсонгүй. Дахин нэвтэрнэ үү.';
@@ -52,49 +51,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         return;
       }
 
-      print('📬 Loading notifications for userId: $userId');
+      print(' Loading notifications for userId: $userId');
 
       final result = await _notificationService.getNotifications(userId);
-      
-      print('📥 Notification Result: ${result['success']}');
-      
-      print('📬 Loading all confirmed accidents...');
-      List<Accident> confirmedAccidents = [];
-      try {
-        confirmedAccidents = await _accidentService.getAllAccidents(
-          status: AccidentStatus.confirmed,
-          limit: 100,
-          forceRefresh: true,
-          userOnly: false, 
-        );
-        print('✅ All confirmed accidents loaded: ${confirmedAccidents.length}');
-      } catch (e) {
-        print('⚠️ Failed to load confirmed accidents: $e');
-      }
-      
-      if (result['success']) {
-        setState(() {
-          _notifications = result['notifications'];
-          _unreadCount = result['unreadCount'];
-          _confirmedAccidents = confirmedAccidents;
-          _error = null;
-          _isLoading = false;
-        });
-        print('✅ Notifications loaded: ${_notifications.length}, Confirmed accidents: ${_confirmedAccidents.length}');
-      } else {
-        setState(() {
-          _notifications = [];
-          _unreadCount = 0;
-          _confirmedAccidents = confirmedAccidents;
-          _error = confirmedAccidents.isEmpty 
-              ? (result['error'] ?? 'Мэдэгдэл ачаалагдсангүй')
-              : null; 
-          _isLoading = false;
-        });
-        print('❌ Load failed: ${result['error']}, but showing ${confirmedAccidents.length} confirmed accidents');
-      }
-    } catch (e) {
-      print('❌ Load notifications exception: $e');
+
+      print(' Notification Result: ${result['success']}');
+
+      print(' Loading all confirmed accidents...');
       List<Accident> confirmedAccidents = [];
       try {
         confirmedAccidents = await _accidentService.getAllAccidents(
@@ -103,11 +66,53 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           forceRefresh: true,
           userOnly: false,
         );
-        print('✅ Loaded ${confirmedAccidents.length} confirmed accidents as fallback');
-      } catch (accidentError) {
-        print('⚠️ Failed to load confirmed accidents: $accidentError');
+        print(' All confirmed accidents loaded: ${confirmedAccidents.length}');
+      } catch (e) {
+        print(' Failed to load confirmed accidents: $e');
       }
-      
+
+      if (result['success']) {
+        setState(() {
+          _notifications = result['notifications'];
+          _unreadCount = result['unreadCount'];
+          _confirmedAccidents = confirmedAccidents;
+          _error = null;
+          _isLoading = false;
+        });
+        print(
+          ' Notifications loaded: ${_notifications.length}, Confirmed accidents: ${_confirmedAccidents.length}',
+        );
+      } else {
+        setState(() {
+          _notifications = [];
+          _unreadCount = 0;
+          _confirmedAccidents = confirmedAccidents;
+          _error = confirmedAccidents.isEmpty
+              ? (result['error'] ?? 'Мэдэгдэл ачаалагдсангүй')
+              : null;
+          _isLoading = false;
+        });
+        print(
+          ' Load failed: ${result['error']}, but showing ${confirmedAccidents.length} confirmed accidents',
+        );
+      }
+    } catch (e) {
+      print(' Load notifications exception: $e');
+      List<Accident> confirmedAccidents = [];
+      try {
+        confirmedAccidents = await _accidentService.getAllAccidents(
+          status: AccidentStatus.confirmed,
+          limit: 100,
+          forceRefresh: true,
+          userOnly: false,
+        );
+        print(
+          ' Loaded ${confirmedAccidents.length} confirmed accidents as fallback',
+        );
+      } catch (accidentError) {
+        print(' Failed to load confirmed accidents: $accidentError');
+      }
+
       setState(() {
         _error = confirmedAccidents.isEmpty ? 'Алдаа гарлаа: $e' : null;
         _notifications = [];
@@ -138,14 +143,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       if (userId == null) return;
 
       await _notificationService.markAllAsRead(userId);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Бүх мэдэгдлийг уншсан гэж тэмдэглэлээ'),
           backgroundColor: Colors.green,
         ),
       );
-      
+
       await _loadNotifications();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -163,15 +168,15 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       if (userId == null) return;
 
       await _notificationService.deleteNotification(notificationId, userId);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Мэдэгдэл устгагдлаа'),
           backgroundColor: Colors.orange,
         ),
       );
-      
-      await _loadNotifications(); 
+
+      await _loadNotifications();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -191,17 +196,18 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       try {
         final result = await _notificationService.getNotifications(userId);
         if (result['success']) {
-          testResult = '✅ API холболт амжилттай\n'
+          testResult =
+              ' API холболт амжилттай\n'
               'Мэдэгдлийн тоо: ${result['notifications']?.length ?? 0}\n'
               'Уншаагүй: ${result['unreadCount'] ?? 0}';
         } else {
-          testResult = '❌ API алдаа:\n${result['error'] ?? 'Тодорхойгүй алдаа'}';
+          testResult = ' API алдаа:\n${result['error'] ?? 'Тодорхойгүй алдаа'}';
         }
       } catch (e) {
-        testResult = '❌ Алдаа гарлаа:\n$e';
+        testResult = ' Алдаа гарлаа:\n$e';
       }
     } else {
-      testResult = '❌ Хэрэглэгч олдсонгүй';
+      testResult = ' Хэрэглэгч олдсонгүй';
     }
     isLoading = false;
 
@@ -256,10 +262,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     ),
                     child: Text(
                       _error!,
-                      style: TextStyle(
-                        color: Colors.red[900],
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.red[900], fontSize: 12),
                     ),
                   ),
                 ],
@@ -349,10 +352,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 child: Text(
                   _error!,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.red.shade900,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Colors.red.shade900, fontSize: 13),
                 ),
               ),
               SizedBox(height: 24),
@@ -382,7 +382,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     }
 
     final totalItems = _notifications.length + _confirmedAccidents.length;
-    
+
     if (totalItems == 0) {
       return Center(
         child: Column(
@@ -429,13 +429,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final message = notification['message'] ?? '';
     final sentAt = notification['sent_at'];
     final type = notification['type'] ?? 'general';
-    
+
     String timeAgo = 'Цаг тодорхойгүй';
     if (sentAt != null) {
       try {
         final dateTime = DateTime.parse(sentAt);
         final difference = DateTime.now().difference(dateTime);
-        
+
         if (difference.inMinutes < 1) {
           timeAgo = 'Дөнгөж сая';
         } else if (difference.inMinutes < 60) {
@@ -452,7 +452,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
     IconData icon;
     Color iconColor;
-    
+
     switch (type) {
       case 'accident':
         icon = Icons.warning;
@@ -518,7 +518,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
-                  backgroundColor: isRead ? Colors.grey[300] : iconColor.withOpacity(0.2),
+                  backgroundColor: isRead
+                      ? Colors.grey[300]
+                      : iconColor.withOpacity(0.2),
                   child: Icon(
                     icon,
                     color: isRead ? Colors.grey[600] : iconColor,
@@ -533,7 +535,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       Text(
                         title,
                         style: TextStyle(
-                          fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                          fontWeight: isRead
+                              ? FontWeight.normal
+                              : FontWeight.bold,
                           fontSize: 15,
                         ),
                       ),
@@ -552,10 +556,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       SizedBox(height: 4),
                       Text(
                         timeAgo,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -616,11 +617,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             children: [
               CircleAvatar(
                 backgroundColor: Colors.green.withOpacity(0.2),
-                child: Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 20,
-                ),
+                child: Icon(Icons.check_circle, color: Colors.green, size: 20),
               ),
               SizedBox(width: 12),
               Expanded(
@@ -639,17 +636,18 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     if (accident.description.isNotEmpty)
                       Text(
                         accident.description,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[700],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.location_on, size: 12, color: Colors.grey[600]),
+                        Icon(
+                          Icons.location_on,
+                          size: 12,
+                          color: Colors.grey[600],
+                        ),
                         SizedBox(width: 4),
                         Text(
                           '${accident.latitude.toStringAsFixed(4)}, ${accident.longitude.toStringAsFixed(4)}',
@@ -659,7 +657,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                           ),
                         ),
                         SizedBox(width: 12),
-                        Icon(Icons.access_time, size: 12, color: Colors.grey[600]),
+                        Icon(
+                          Icons.access_time,
+                          size: 12,
+                          color: Colors.grey[600],
+                        ),
                         SizedBox(width: 4),
                         Text(
                           timeAgo,
@@ -682,25 +684,36 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                               userHasReported: accident.userHasReported,
                             ),
                           );
-                          if (result == true) { 
+                          if (result == true) {
                             if (mounted) {
                               _loadNotifications();
                             }
                           }
                         },
                         icon: Icon(
-                          accident.userHasReported ? Icons.check_circle : Icons.report_problem,
+                          accident.userHasReported
+                              ? Icons.check_circle
+                              : Icons.report_problem,
                           size: 16,
-                          color: accident.userHasReported ? Colors.grey : Colors.orange,
+                          color: accident.userHasReported
+                              ? Colors.grey
+                              : Colors.orange,
                         ),
                         label: Text(
-                          accident.userHasReported ? 'Мэдэгдсэн' : 'Буруу мэдээлэл мэдэгдэх',
+                          accident.userHasReported
+                              ? 'Мэдэгдсэн'
+                              : 'Буруу мэдээлэл мэдэгдэх',
                           style: TextStyle(fontSize: 12),
                         ),
                         style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          padding: EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
                           side: BorderSide(
-                            color: accident.userHasReported ? Colors.grey : Colors.orange,
+                            color: accident.userHasReported
+                                ? Colors.grey
+                                : Colors.orange,
                           ),
                           minimumSize: Size(0, 32),
                         ),

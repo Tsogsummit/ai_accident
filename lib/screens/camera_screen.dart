@@ -4,7 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
-import '../services/auth_service.dart'; 
+import '../services/auth_service.dart';
 
 import 'dart:io';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -57,21 +57,21 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   void _cleanupResources() {
-    print('🧹 Cleaning up camera resources...');
+    print(' Cleaning up camera resources...');
 
     if (_cameraController != null) {
       _cameraController?.dispose();
       _cameraController = null;
     }
 
-    print('✅ Cleanup complete');
+    print(' Cleanup complete');
   }
 
   Future<void> _getCurrentLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        print('⚠️ Байршлын үйлчилгээ идэвхгүй байна');
+        print(' Байршлын үйлчилгээ идэвхгүй байна');
         return;
       }
 
@@ -82,7 +82,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        print('⚠️ Байршлын зөвшөөрөл олгогдоогүй');
+        print(' Байршлын зөвшөөрөл олгогдоогүй');
         return;
       }
 
@@ -91,10 +91,10 @@ class _CameraScreenState extends State<CameraScreen>
       );
 
       print(
-        '✅ Байршил авагдлаа: ${_currentPosition?.latitude}, ${_currentPosition?.longitude}',
+        ' Байршил авагдлаа: ${_currentPosition?.latitude}, ${_currentPosition?.longitude}',
       );
     } catch (e) {
-      print('❌ Байршил авахад алдаа: $e');
+      print(' Байршил авахад алдаа: $e');
     }
   }
 
@@ -171,7 +171,7 @@ class _CameraScreenState extends State<CameraScreen>
 
     _cameraController = CameraController(
       _cameras![0],
-      ResolutionPreset.medium, 
+      ResolutionPreset.medium,
       enableAudio: true,
     );
 
@@ -198,11 +198,11 @@ class _CameraScreenState extends State<CameraScreen>
         setState(() {
           _imagePath = image.path;
         });
-        print('📸 Зураг дарагдлаа: $_imagePath');
+        print(' Зураг дарагдлаа: $_imagePath');
         _showImagePreview();
       }
     } catch (e) {
-      print('❌ Take picture error: $e');
+      print(' Take picture error: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -298,7 +298,7 @@ class _CameraScreenState extends State<CameraScreen>
         File(_imagePath!).deleteSync();
         setState(() => _imagePath = null);
       } catch (e) {
-        print('❌ Файл устгахад алдаа: $e');
+        print(' Файл устгахад алдаа: $e');
       }
     }
   }
@@ -327,7 +327,6 @@ class _CameraScreenState extends State<CameraScreen>
       }
     }
 
-    // Show loading
     if (!mounted) return;
     showDialog(
       context: context,
@@ -364,12 +363,12 @@ class _CameraScreenState extends State<CameraScreen>
           compressedFile.deleteSync();
         }
       } catch (e) {
-        print('⚠️ Failed to delete compressed file: $e');
+        print(' Failed to delete compressed file: $e');
       }
 
       _deleteImage();
       if (!mounted) return;
-      Navigator.pop(context); 
+      Navigator.pop(context);
 
       if (result != null && result['success'] == true) {
         final data = result['data'];
@@ -393,8 +392,10 @@ class _CameraScreenState extends State<CameraScreen>
                   Text(result['message'] ?? 'Зураг шалгагдлаа'),
                   if (analysis != null) ...[
                     SizedBox(height: 12),
-                    Text('AI: ${analysis['description'] ?? ''}',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                    Text(
+                      'AI: ${analysis['description'] ?? ''}',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
                   ],
                 ],
               ),
@@ -410,7 +411,8 @@ class _CameraScreenState extends State<CameraScreen>
           String description = '';
           if (data is Map && data['description'] != null) {
             description = data['description'];
-          } else if (result['data'] != null && result['data'].description != null) {
+          } else if (result['data'] != null &&
+              result['data'].description != null) {
             description = result['data'].description;
           }
 
@@ -424,9 +426,11 @@ class _CameraScreenState extends State<CameraScreen>
                   Text('Осол бүртгэгдлээ'),
                 ],
               ),
-              content: Text(description.isNotEmpty
-                  ? 'AI Хариу: $description'
-                  : 'Осол амжилттай бүртгэгдлээ'),
+              content: Text(
+                description.isNotEmpty
+                    ? 'AI Хариу: $description'
+                    : 'Осол амжилттай бүртгэгдлээ',
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -442,12 +446,15 @@ class _CameraScreenState extends State<CameraScreen>
         if (result?['rateLimited'] == true) {
           final remainingMinutes = result?['remainingMinutes'] ?? 15;
           _showErrorDialog(
-            '⏱️ Та хэт олон мэдээлэл илгээж байна.\n\n'
+            ' Та хэт олон мэдээлэл илгээж байна.\n\n'
             '$remainingMinutes минутын дараа дахин оролдоно уу.',
           );
-        }
-        else if (errorMsg.contains('токен') || errorMsg.contains('401') || errorMsg.contains('403')) {
-          _showErrorDialog('Нэвтрэлтийн хугацаа дууссан байна. Дахин нэвтрэнэ үү.');
+        } else if (errorMsg.contains('токен') ||
+            errorMsg.contains('401') ||
+            errorMsg.contains('403')) {
+          _showErrorDialog(
+            'Нэвтрэлтийн хугацаа дууссан байна. Дахин нэвтрэнэ үү.',
+          );
         } else {
           _showErrorDialog(errorMsg);
         }
@@ -459,9 +466,14 @@ class _CameraScreenState extends State<CameraScreen>
       String errorStr = e.toString();
       String userMessage;
 
-      if (errorStr.contains('токен') || errorStr.contains('Хүчингүй') || errorStr.contains('403') || errorStr.contains('401')) {
+      if (errorStr.contains('токен') ||
+          errorStr.contains('Хүчингүй') ||
+          errorStr.contains('403') ||
+          errorStr.contains('401')) {
         userMessage = 'Нэвтрэлтийн хугацаа дууссан. Дахин нэвтрэнэ үү.';
-      } else if (errorStr.contains('Connection') || errorStr.contains('timeout') || errorStr.contains('сүлжээ')) {
+      } else if (errorStr.contains('Connection') ||
+          errorStr.contains('timeout') ||
+          errorStr.contains('сүлжээ')) {
         userMessage = 'Сүлжээний алдаа. Интернет холболтоо шалгана уу.';
       } else if (errorStr.contains('500') || errorStr.contains('сервер')) {
         userMessage = 'Серверийн алдаа. Түр хүлээгээд дахин оролдоно уу.';
@@ -518,20 +530,20 @@ class _CameraScreenState extends State<CameraScreen>
       final lastIndex = filePath.lastIndexOf(new RegExp(r'.jp'));
       final splitted = filePath.substring(0, (lastIndex));
       final outPath = "${splitted}_out${filePath.substring(lastIndex)}";
-      
+
       var result = await FlutterImageCompress.compressAndGetFile(
-        file.absolute.path, 
+        file.absolute.path,
         outPath,
         quality: 70,
         minWidth: 1024,
         minHeight: 1024,
       );
-      
+
       if (result == null) return file;
       return File(result.path);
     } catch (e) {
-      print('❌ Image compression error: $e');
-      return file; 
+      print(' Image compression error: $e');
+      return file;
     }
   }
 
@@ -672,7 +684,10 @@ class _CameraScreenState extends State<CameraScreen>
                   Icon(Icons.zoom_out, color: Colors.white),
                   Text(
                     '${_currentZoom.toStringAsFixed(1)}x',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   Icon(Icons.zoom_in, color: Colors.white),
                 ],

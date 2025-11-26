@@ -15,8 +15,8 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveClientMixin {
-
+class _HistoryScreenState extends State<HistoryScreen>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -35,17 +35,17 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
   Future<void> _initializeAndLoadData() async {
     final token = await _authService.getAccessToken();
     final user = await _authService.getUser();
-    
+
     if (token == null || user == null) {
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,
         );
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Нэвтрэх шаардлагатай'),
+            content: Text(' Нэвтрэх шаардлагатай'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -66,7 +66,7 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
           _loadSubmissions(),
         ]);
       } catch (e) {
-        print('❌ Load data error: $e');
+        print(' Load data error: $e');
       }
     }
   }
@@ -79,9 +79,9 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
           _submissions = submissions;
         });
       }
-      print('✅ Loaded ${submissions.length} submissions');
+      print(' Loaded ${submissions.length} submissions');
     } catch (e) {
-      print('❌ Load submissions error: $e');
+      print(' Load submissions error: $e');
     }
   }
 
@@ -97,14 +97,14 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
         provider.clearError();
       } catch (e) {
-        print('❌ Refresh error: $e');
+        print(' Refresh error: $e');
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); 
+    super.build(context);
 
     if (!_isInitialized) {
       return Scaffold(
@@ -196,8 +196,8 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
           if (provider.error.isNotEmpty) {
             final errorLower = provider.error.toLowerCase();
-            
-            if (errorLower.contains('нэвтрэх') || 
+
+            if (errorLower.contains('нэвтрэх') ||
                 errorLower.contains('эрх дууссан') ||
                 errorLower.contains('unauthorized') ||
                 errorLower.contains('401')) {
@@ -211,7 +211,10 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                       SizedBox(height: 16),
                       Text(
                         'Нэвтрэх эрх дууссан',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       SizedBox(height: 8),
                       Text(
@@ -225,7 +228,9 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                           await _authService.logout();
                           if (mounted) {
                             Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              MaterialPageRoute(
+                                builder: (_) => const LoginScreen(),
+                              ),
                               (route) => false,
                             );
                           }
@@ -233,7 +238,10 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                         icon: Icon(Icons.login),
                         label: Text('Дахин нэвтрэх'),
                         style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 16,
+                          ),
                         ),
                       ),
                     ],
@@ -248,7 +256,10 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                 children: [
                   Icon(Icons.error_outline, size: 64, color: Colors.red),
                   SizedBox(height: 16),
-                  Text('Алдаа гарлаа', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Алдаа гарлаа',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   SizedBox(height: 8),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20),
@@ -280,8 +291,12 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
           }
 
           items.sort((a, b) {
-            DateTime aTime = a is Accident ? a.timestamp : (a as Submission).createdAt;
-            DateTime bTime = b is Accident ? b.timestamp : (b as Submission).createdAt;
+            DateTime aTime = a is Accident
+                ? a.timestamp
+                : (a as Submission).createdAt;
+            DateTime bTime = b is Accident
+                ? b.timestamp
+                : (b as Submission).createdAt;
             return bTime.compareTo(aTime);
           });
 
@@ -294,7 +309,10 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   SizedBox(height: 16),
                   Text('Түүх хоосон байна', style: TextStyle(fontSize: 18)),
                   SizedBox(height: 8),
-                  Text('Мэдээлэл одоогоор байхгүй байна', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    'Мэдээлэл одоогоор байхгүй байна',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             );
@@ -343,7 +361,9 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      accident.source == AccidentSource.user ? Icons.person : Icons.videocam,
+                      accident.source == AccidentSource.user
+                          ? Icons.person
+                          : Icons.videocam,
                       color: _getSourceColor(accident.source),
                       size: 20,
                     ),
@@ -364,12 +384,14 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                         ),
                         Text(
                           accident.reportedBy,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
                         ),
                       ],
                     ),
                   ),
-
                 ],
               ),
 
@@ -408,7 +430,11 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                     SizedBox(width: 4),
                     Text(
                       '${accident.verificationCount}',
-                      style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ],
@@ -460,11 +486,7 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                       color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      Icons.image,
-                      color: statusColor,
-                      size: 20,
-                    ),
+                    child: Icon(Icons.image, color: statusColor, size: 20),
                   ),
                   SizedBox(width: 12),
 
@@ -482,7 +504,10 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                         ),
                         Text(
                           submission.statusMongolian,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
                         ),
                       ],
                     ),
@@ -575,7 +600,9 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                   Row(
                     children: [
                       Icon(
-                        accident.source == AccidentSource.user ? Icons.person : Icons.videocam,
+                        accident.source == AccidentSource.user
+                            ? Icons.person
+                            : Icons.videocam,
                         color: _getSourceColor(accident.source),
                         size: 28,
                       ),
@@ -594,7 +621,10 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                             ),
                             Text(
                               'Осол #${accident.id}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
                             ),
                           ],
                         ),
@@ -604,18 +634,39 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
                   SizedBox(height: 20),
 
-                  _buildDetailRow('Төлөв', accident.statusMongolian, Icons.info, _getStatusColor(accident.status)),
-                  _buildDetailRow('Огноо цаг', _formatDateTime(accident.timestamp), Icons.access_time, Colors.grey[700]!),
-                  _buildDetailRow('Байршил', '${accident.latitude.toStringAsFixed(6)}, ${accident.longitude.toStringAsFixed(6)}', Icons.location_on, Colors.red),
+                  _buildDetailRow(
+                    'Төлөв',
+                    accident.statusMongolian,
+                    Icons.info,
+                    _getStatusColor(accident.status),
+                  ),
+                  _buildDetailRow(
+                    'Огноо цаг',
+                    _formatDateTime(accident.timestamp),
+                    Icons.access_time,
+                    Colors.grey[700]!,
+                  ),
+                  _buildDetailRow(
+                    'Байршил',
+                    '${accident.latitude.toStringAsFixed(6)}, ${accident.longitude.toStringAsFixed(6)}',
+                    Icons.location_on,
+                    Colors.red,
+                  ),
 
                   if (accident.description.isNotEmpty) ...[
                     SizedBox(height: 16),
                     Text(
                       'Хэрэглэгчээс бичигдсэн осол:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                     SizedBox(height: 8),
-                    Text(_stripDuration(accident.description), style: TextStyle(fontSize: 14)),
+                    Text(
+                      _stripDuration(accident.description),
+                      style: TextStyle(fontSize: 14),
+                    ),
                   ],
 
                   SizedBox(height: 24),
@@ -654,15 +705,21 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                                   }
                                 },
                           icon: Icon(
-                            accident.userHasReported ? Icons.check_circle : Icons.report_problem,
+                            accident.userHasReported
+                                ? Icons.check_circle
+                                : Icons.report_problem,
                             size: 18,
                           ),
                           label: Text(
-                            accident.userHasReported ? 'Мэдэгдсэн' : 'Буруу мэдээлэл',
+                            accident.userHasReported
+                                ? 'Мэдэгдсэн'
+                                : 'Буруу мэдээлэл',
                             style: TextStyle(fontSize: 13),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: accident.userHasReported ? Colors.grey : Colors.orange,
+                            backgroundColor: accident.userHasReported
+                                ? Colors.grey
+                                : Colors.orange,
                             foregroundColor: Colors.white,
                             padding: EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -681,7 +738,12 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
     );
   }
 
-  Widget _buildDetailRow(String label, String value, IconData icon, Color color) {
+  Widget _buildDetailRow(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Padding(
       padding: EdgeInsets.only(bottom: 12),
       child: Row(
@@ -692,12 +754,7 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
             '$label: ',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(fontSize: 14),
-            ),
-          ),
+          Expanded(child: Text(value, style: TextStyle(fontSize: 14))),
         ],
       ),
     );
@@ -783,7 +840,11 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
 
                   Row(
                     children: [
-                      Icon(Icons.image, color: _getSubmissionStatusColor(submission.status), size: 28),
+                      Icon(
+                        Icons.image,
+                        color: _getSubmissionStatusColor(submission.status),
+                        size: 28,
+                      ),
                       SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -791,11 +852,17 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                           children: [
                             Text(
                               'Илгээсэн зураг',
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             Text(
                               'ID: ${submission.id}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
                             ),
                           ],
                         ),
@@ -821,9 +888,16 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                                  Icon(
+                                    Icons.broken_image,
+                                    size: 48,
+                                    color: Colors.grey,
+                                  ),
                                   SizedBox(height: 8),
-                                  Text('Зураг ачаалагдсангүй', style: TextStyle(color: Colors.grey)),
+                                  Text(
+                                    'Зураг ачаалагдсангүй',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
                                 ],
                               ),
                             ),
@@ -834,15 +908,39 @@ class _HistoryScreenState extends State<HistoryScreen> with AutomaticKeepAliveCl
                     SizedBox(height: 20),
                   ],
 
-                  _buildDetailRow('Төлөв', submission.statusMongolian, Icons.info, _getSubmissionStatusColor(submission.status)),
-                  _buildDetailRow('Огноо цаг', _formatDateTime(submission.createdAt), Icons.access_time, Colors.grey[700]!),
-                  _buildDetailRow('Байршил', '${submission.latitude.toStringAsFixed(6)}, ${submission.longitude.toStringAsFixed(6)}', Icons.location_on, Colors.red),
+                  _buildDetailRow(
+                    'Төлөв',
+                    submission.statusMongolian,
+                    Icons.info,
+                    _getSubmissionStatusColor(submission.status),
+                  ),
+                  _buildDetailRow(
+                    'Огноо цаг',
+                    _formatDateTime(submission.createdAt),
+                    Icons.access_time,
+                    Colors.grey[700]!,
+                  ),
+                  _buildDetailRow(
+                    'Байршил',
+                    '${submission.latitude.toStringAsFixed(6)}, ${submission.longitude.toStringAsFixed(6)}',
+                    Icons.location_on,
+                    Colors.red,
+                  ),
 
                   if (submission.description.isNotEmpty) ...[
                     SizedBox(height: 16),
-                    Text('Тайлбар:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(
+                      'Тайлбар:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                     SizedBox(height: 8),
-                    Text(submission.description, style: TextStyle(fontSize: 14)),
+                    Text(
+                      submission.description,
+                      style: TextStyle(fontSize: 14),
+                    ),
                   ],
 
                   if (submission.errorMessage != null) ...[

@@ -1,27 +1,24 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-
   static const bool useGateway = false;
 
-  static const String localIP = '192.168.0.108'; 
+  static const String localIP = '192.168.0.108';
 
   static const int authPort = 3001;
   static const int accidentPort = 3002;
   static const int videoPort = 3003;
   static const int aiPort = 3004;
   static const int notificationPort = 3005;
-  static const int reportPort = 3007; 
+  static const int reportPort = 3007;
 
   static String get authServiceUrl => 'http://$localIP:$authPort';
   static String get accidentServiceUrl => 'http://$localIP:$accidentPort';
-  static String get videoServiceUrl =>
-      'http://$localIP:$videoPort'; 
+  static String get videoServiceUrl => 'http://$localIP:$videoPort';
   static String get aiServiceUrl => 'http://$localIP:$aiPort';
   static String get notificationServiceUrl =>
       'http://$localIP:$notificationPort';
-  static String get reportServiceUrl =>
-      'http://$localIP:$reportPort'; 
+  static String get reportServiceUrl => 'http://$localIP:$reportPort';
 
   static String get gatewayUrl => 'http://$localIP:3000/api';
 
@@ -43,8 +40,7 @@ class ApiConfig {
 
   static String get videoUploadEndpoint => '$videoServiceUrl/upload';
   static String get videoListEndpoint => '$videoServiceUrl/videos';
-  static String get videoStatusEndpoint =>
-      '$videoServiceUrl/videos'; 
+  static String get videoStatusEndpoint => '$videoServiceUrl/videos';
 
   static String get aiAnalyzeEndpoint => '$aiServiceUrl/ai/analyze';
   static String get aiDetectEndpoint => '$aiServiceUrl/ai/detect';
@@ -87,7 +83,6 @@ class ApiConfig {
   static int get maxImageSizeBytes => maxImageSizeMB * 1024 * 1024;
   static int get maxVideoSizeBytes => maxVideoSizeMB * 1024 * 1024;
 
-
   static bool isValidImageSize(int sizeInBytes) {
     return sizeInBytes <= maxImageSizeBytes;
   }
@@ -117,13 +112,13 @@ class ApiConfig {
 
   static void printServiceUrls() {
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('📡 SERVICE URLS');
+    print(' SERVICE URLS');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('🔐 Auth:         $authServiceUrl');
-    print('🚗 Accident:     $accidentServiceUrl');
-    print('📹 Video:        $videoServiceUrl');
-    print('🤖 AI:           $aiServiceUrl');
-    print('🔔 Notification: $notificationServiceUrl');
+    print(' Auth:         $authServiceUrl');
+    print(' Accident:     $accidentServiceUrl');
+    print(' Video:        $videoServiceUrl');
+    print(' AI:           $aiServiceUrl');
+    print(' Notification: $notificationServiceUrl');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   }
 
@@ -148,5 +143,6 @@ class ApiConfig {
 
   static String get reportImageEndpoint => '$reportServiceUrl/reports/image';
 
-  static String get submissionsEndpoint => '$reportServiceUrl/reports/submissions';
+  static String get submissionsEndpoint =>
+      '$reportServiceUrl/reports/submissions';
 }
