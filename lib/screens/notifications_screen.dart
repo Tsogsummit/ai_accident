@@ -520,7 +520,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 CircleAvatar(
                   backgroundColor: isRead
                       ? Colors.grey[300]
-                      : iconColor.withOpacity(0.2),
+                      : iconColor.withValues(alpha: 0.2),
                   child: Icon(
                     icon,
                     color: isRead ? Colors.grey[600] : iconColor,
@@ -616,7 +616,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
-                backgroundColor: Colors.green.withOpacity(0.2),
+                backgroundColor: Colors.green.withValues(alpha: 0.2),
                 child: Icon(Icons.check_circle, color: Colors.green, size: 20),
               ),
               SizedBox(width: 12),

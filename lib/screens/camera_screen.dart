@@ -507,9 +507,11 @@ class _CameraScreenState extends State<CameraScreen>
                   listen: false,
                 );
                 await authService.logout();
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil('/login', (route) => false);
+                if (context.mounted) {
+                  Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil('/login', (route) => false);
+                }
               },
               child: Text('Гарах', style: TextStyle(color: Colors.red)),
             ),

@@ -20,7 +20,7 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
   final FalseReportService _falseReportService = FalseReportService();
   final AuthService _authService = AuthService();
   final TextEditingController _commentController = TextEditingController();
-  
+
   List<Map<String, dynamic>> _reasons = [];
   int? _selectedReasonId;
   bool _isLoading = false;
@@ -60,13 +60,15 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
 
   Future<void> _submitReport() async {
     if (_selectedReasonId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Шалтгаан сонгоно уу')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Шалтгаан сонгоно уу')));
       return;
     }
 
     final user = await _authService.getUser();
+    if (!mounted) return;
+
     if (user == null || user['id'] == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Хэрэглэгчийн мэдээлэл олдсонгүй')),
@@ -104,17 +106,14 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: backgroundColor,
-          ),
+          SnackBar(content: Text(message), backgroundColor: backgroundColor),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Алдаа: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Алдаа: $e')));
       }
     } finally {
       if (mounted) {
@@ -130,9 +129,7 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
         children: [
           Icon(Icons.report_problem, color: Colors.orange),
           SizedBox(width: 8),
-          Flexible(
-            child: Text('Буруу мэдээлэл мэдэгдэх'),
-          ),
+          Flexible(child: Text('Буруу мэдээлэл мэдэгдэх')),
         ],
       ),
       content: SizedBox(
@@ -157,7 +154,10 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
                       Expanded(
                         child: Text(
                           'Та аль хэдийн энэ ослыг буруу мэдээлэл гэж мэдэгдсэн байна.',
-                          style: TextStyle(fontSize: 14, color: Colors.orange[900]),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.orange[900],
+                          ),
                         ),
                       ),
                     ],
@@ -176,21 +176,26 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
               else if (!widget.userHasReported && _reasons.isEmpty)
                 Text('Шалтгаан олдсонгүй', style: TextStyle(color: Colors.red))
               else if (!widget.userHasReported) ...[
-                ..._reasons.map((reason) => RadioListTile<int>(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(reason['name'] ?? ''),
-                  subtitle: reason['description'] != null
-                      ? Text(
-                          reason['description'],
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        )
-                      : null,
-                  value: reason['id'] as int,
-                  groupValue: _selectedReasonId,
-                  onChanged: (value) {
-                    setState(() => _selectedReasonId = value);
-                  },
-                )),
+                ..._reasons.map(
+                  (reason) => RadioListTile<int>(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(reason['name'] ?? ''),
+                    subtitle: reason['description'] != null
+                        ? Text(
+                            reason['description'],
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          )
+                        : null,
+                    value: reason['id'] as int,
+                    groupValue: _selectedReasonId,
+                    onChanged: (value) {
+                      setState(() => _selectedReasonId = value);
+                    },
+                  ),
+                ),
                 SizedBox(height: 16),
                 TextField(
                   controller: _commentController,
@@ -214,9 +219,7 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
         if (!widget.userHasReported)
           ElevatedButton(
             onPressed: _isSubmitting ? null : _submitReport,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: _isSubmitting
                 ? SizedBox(
                     width: 20,
@@ -232,4 +235,3 @@ class _FalseReportDialogState extends State<FalseReportDialog> {
     );
   }
 }
-

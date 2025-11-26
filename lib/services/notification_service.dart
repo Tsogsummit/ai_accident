@@ -227,44 +227,6 @@ class NotificationService {
     }
   }
 
-  Future<bool> registerFcmToken(int userId, String fcmToken) async {
-    try {
-      final response = await _dio.post(
-        '/notifications/register-token',
-        data: {'userId': userId, 'fcmToken': fcmToken},
-      );
-
-      if (response.statusCode == 200 && response.data['success']) {
-        print('FCM token registered');
-        return true;
-      }
-
-      return false;
-    } on DioException catch (e) {
-      print('Register FCM token error: ${e.message}');
-      return false;
-    }
-  }
-
-  Future<bool> unregisterFcmToken(int userId) async {
-    try {
-      final response = await _dio.delete(
-        '/notifications/unregister-token',
-        data: {'userId': userId},
-      );
-
-      if (response.statusCode == 200 && response.data['success']) {
-        print('FCM token unregistered');
-        return true;
-      }
-
-      return false;
-    } on DioException catch (e) {
-      print('Unregister FCM token error: ${e.message}');
-      return false;
-    }
-  }
-
   String _handleError(DioException e) {
     switch (e.type) {
       case DioExceptionType.connectionTimeout:

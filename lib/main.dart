@@ -3,9 +3,14 @@ import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/auth_service.dart';
+import 'services/local_notification_service.dart';
 import 'providers/accident_provider.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await LocalNotificationService().initialize();
+
   runApp(const MyApp());
 }
 
@@ -15,9 +20,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AccidentProvider()),
-      ],
+      providers: [ChangeNotifierProvider(create: (_) => AccidentProvider())],
       child: MaterialApp(
         title: 'Осол илрүүлэх систем',
         debugShowCheckedModeBanner: false,
@@ -68,21 +71,27 @@ class _AuthCheckState extends State<AuthCheck> {
 
       if (isLoggedIn) {
         final profile = await _authService.getProfile();
-        
+
         if (profile != null) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+            );
+          }
         } else {
           await _authService.logout();
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const LoginScreen()),
           );
         }
-      } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
       }
     } catch (e) {
       print('❌ Auth check error: $e');
@@ -103,11 +112,7 @@ class _AuthCheckState extends State<AuthCheck> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.traffic,
-              size: 100,
-              color: Colors.white,
-            ),
+            const Icon(Icons.traffic, size: 100, color: Colors.white),
             const SizedBox(height: 24),
             const Text(
               'Осол илрүүлэх систем',
@@ -119,9 +124,7 @@ class _AuthCheckState extends State<AuthCheck> {
             ),
             const SizedBox(height: 48),
             if (_isLoading)
-              const CircularProgressIndicator(
-                color: Colors.white,
-              ),
+              const CircularProgressIndicator(color: Colors.white),
           ],
         ),
       ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/accident_provider.dart';
+import '../services/auth_service.dart';
+import '../services/socket_notification_service.dart';
 import 'map_screen.dart';
 import 'camera_screen.dart';
 import 'history_screen.dart';
@@ -17,6 +19,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
+  final _socketService = SocketNotificationService();
+  final _authService = AuthService();
 
   final List<Widget> _screens = [
     const MapScreen(),
@@ -31,12 +35,27 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<AccidentProvider>(context, listen: false).loadAccidents();
+      _connectSocket();
     });
+  }
+
+  Future<void> _connectSocket() async {
+    try {
+      final profile = await _authService.getProfile();
+      if (profile != null && profile['id'] != null) {
+        final userId = profile['id'] as int;
+        _socketService.connect(userId);
+        print('Socket connection initiated for user: $userId');
+      }
+    } catch (e) {
+      print('Failed to connect socket: $e');
+    }
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _socketService.disconnect();
     super.dispose();
   }
 
