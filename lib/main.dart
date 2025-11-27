@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => AccidentProvider())],
       child: MaterialApp(
-        title: 'Осол илрүүлэх систем',
+        title: 'Осол илрүүлэх систем',  
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primarySwatch: Colors.blue,

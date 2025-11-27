@@ -484,16 +484,6 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
                           'Харагдаж буй',
                           Colors.blue,
                         ),
-                        _buildCompactStat(
-                          '${provider.accidents.where((a) => a.status == AccidentStatus.confirmed).length}',
-                          'Баталгаажсан',
-                          Colors.green,
-                        ),
-                        _buildCompactStat(
-                          '${provider.accidents.where((a) => a.status == AccidentStatus.reported).length}',
-                          'Мэдээлсэн',
-                          Colors.orange,
-                        ),
                       ],
                     ),
                   ),
