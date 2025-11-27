@@ -158,6 +158,7 @@ lib/firebase_options.dart
 **/credentials/
 **/*_secrets.dart
 **/*_config.dart
+!lib/config/api_config.dart
 **/*_keys.dart
 
 # ==========================================

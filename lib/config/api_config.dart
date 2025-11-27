@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 class ApiConfig {
   static const bool useGateway = false;
 
-  static const String localIP = '192.168.0.108';
+  static const String localIP = '34.143.209.199';
 
   static const int authPort = 3001;
   static const int accidentPort = 3002;

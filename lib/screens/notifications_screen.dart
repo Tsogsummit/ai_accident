@@ -44,10 +44,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       final userId = await _authService.getUserId();
 
       if (userId == null) {
-        setState(() {
-          _error = 'Хэрэглэгч олдсонгүй. Дахин нэвтэрнэ үү.';
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _error = 'Хэрэглэгч олдсонгүй. Дахин нэвтэрнэ үү.';
+            _isLoading = false;
+          });
+        }
         return;
       }
 
@@ -70,6 +72,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       } catch (e) {
         print(' Failed to load confirmed accidents: $e');
       }
+
+      if (!mounted) return;
 
       if (result['success']) {
         setState(() {
@@ -113,13 +117,15 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         print(' Failed to load confirmed accidents: $accidentError');
       }
 
-      setState(() {
-        _error = confirmedAccidents.isEmpty ? 'Алдаа гарлаа: $e' : null;
-        _notifications = [];
-        _unreadCount = 0;
-        _confirmedAccidents = confirmedAccidents;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = confirmedAccidents.isEmpty ? 'Алдаа гарлаа: $e' : null;
+          _notifications = [];
+          _unreadCount = 0;
+          _confirmedAccidents = confirmedAccidents;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -128,12 +134,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       await _notificationService.markAsRead(notificationId);
       await _loadNotifications();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Алдаа гарлаа: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Алдаа гарлаа: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -144,6 +152,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
       await _notificationService.markAllAsRead(userId);
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Бүх мэдэгдлийг уншсан гэж тэмдэглэлээ'),
@@ -153,12 +163,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
       await _loadNotifications();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Алдаа гарлаа: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Алдаа гарлаа: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -169,6 +181,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
       await _notificationService.deleteNotification(notificationId, userId);
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Мэдэгдэл устгагдлаа'),
@@ -178,12 +192,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
       await _loadNotifications();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Алдаа гарлаа: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Алдаа гарлаа: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -680,7 +696,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                           final result = await showDialog<bool>(
                             context: context,
                             builder: (context) => FalseReportDialog(
-                              accidentId: int.parse(accident.id),
+                              accidentId: int.tryParse(accident.id) ?? 0,
                               userHasReported: accident.userHasReported,
                             ),
                           );
